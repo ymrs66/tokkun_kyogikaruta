@@ -1,0 +1,63 @@
+name: tokkun_kyogikaruta
+description: "A new Flutter project."
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+
+version: 1.0.7+7
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  hooks_riverpod: ^2.5.0     # ← ランタイムで使うので dependencies に置く
+  flutter_hooks: ^0.20.5       # ← アニメーション制御に使う
+  go_router: ^13.2.1
+  google_mobile_ads: ^6.0.0
+  audioplayers: ^6.5.0
+  share_plus: ^7.2.1
+  gal: ^2.3.0
+  path_provider: ^2.1.4
+  permission_handler: ^11.3.1
+  url_launcher: ^6.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  shared_preferences: ^2.2.2
+  auto_size_text: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  # シンプルに1枚から作る場合（両OS共通の元画像）
+  image_path: assets/icons/app_icon_with_card.png
+
+  # ← Androidのアダプティブアイコンをちゃんと使いたい場合は下の2行を使う
+  # adaptive_icon_background: assets/icons/bg.png # または "#EFE6D5" など色コード
+  # adaptive_icon_foreground: assets/icons/fg.png #（前景。後で札を足すときはここを差し替え）
+
+  min_sdk_android: 21
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+
+  # The following line ensures that the Material Icons font is
+  # included with your application, so that you can use the icons in
+  # the material Icons class.
+  uses-material-design: true
+
+  # To add assets to your application, add an assets section, like this:
+  assets:
+    - assets/images/
+    - assets/images/gallery/
+    - assets/audio/

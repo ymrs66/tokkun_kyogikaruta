@@ -1,0 +1,1831 @@
+# ===== FILE: lib/app.dart =====
+// app.dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'screens/title_screen.dart';
+import 'screens/play_screen.dart';
+import 'screens/result_screen.dart';
+import 'screens/howto_screen.dart';
+import 'screens/highscore_screen.dart';
+import 'screens/privacy_screen.dart';
+import 'screens/gallery_screen.dart';
+
+final _router = GoRouter(
+  routes: [
+    GoRoute(path: '/',        builder: (_, __) => const TitleScreen()),
+    GoRoute(path: '/play',    builder: (_, __) => const PlayScreen()),
+    GoRoute(path: '/result',  builder: (_, __) => const ResultScreen()),
+    GoRoute(path: '/howto',   builder: (_, __) => const HowToScreen()),
+    GoRoute(path: '/score',   builder: (_, __) => const HighScoreScreen()),
+    GoRoute(path: '/privacy', builder: (_, __) => const PrivacyScreen()),
+    GoRoute(path: '/gallery', builder: (_, __) => const GalleryScreen()),
+  ],
+);
+
+class App extends StatelessWidget {
+  const App({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      title: '競技かるた練習',
+      routerConfig: _router,
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        final clamped = mq.textScaleFactor.clamp(1.0, 1.3);
+        return MediaQuery(
+          data: mq.copyWith(textScaleFactor: clamped),
+          child: child ?? const SizedBox(),
+        );
+      },
+      theme: ThemeData(useMaterial3: true),
+    );
+  }
+}
+
+# ===== FILE: lib/main.dart =====
+// lib/main.dart
+import 'package:flutter/material.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'app.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+  if (isMobile) {
+    await MobileAds.instance.initialize();
+    await MobileAds.instance.updateRequestConfiguration(
+      RequestConfiguration(testDeviceIds: const <String>[
+        // 実機テスト時に追加
+      ]),
+    );
+  }
+
+  runApp(const ProviderScope(child: App()));
+}
+
+
+# ===== FILE: test/widget_test.dart =====
+// test/widget_test.dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:tokkun_kyogikaruta/app.dart';
+
+void main() {
+  testWidgets('app smoke test', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: App()));
+    // 初期画面の「スタート」ボタンが見えることを確認
+    expect(find.text('スタート'), findsOneWidget);
+  });
+}
+
+
+# ===== FILE: lib/data/cards.dart =====
+import '../models/card_data.dart';
+
+const cards = [
+  CardData(1,   'あきのたの かりほのいほの とまをあらみ', 'わがころもでは つゆにぬれつつ'),
+  CardData(2,   'はるすぎて なつきにけらし しろたへの', 'ころもほすてふ あまのかぐやま'),
+  CardData(3,   'あしびきの やまどりのをの しだりをの', 'ながながしよを ひとりかもねむ'),
+  CardData(4,   'たごのうらに うちいでてみれば しろたへの', 'ふじのたかねに ゆきはふりつつ'),
+  CardData(5,   'おくやまに もみぢふみわけ なくしかの', 'こゑきくときぞ あきはかなしき'),
+  CardData(6,   'かささぎの わたせるはしに おくしもの', 'しろきをみれば よぞふけにける'),
+  CardData(7,   'あまのはら ふりさけみれば かすがなる', 'みかさのやまに いでしつきかも'),
+  CardData(8,   'わがいほは みやこのたつみ しかぞすむ', 'よをうぢやまと ひとはいふなり'),
+  CardData(9,   'はなのいろは うつりにけりな いたづらに', 'わがみよにふる ながめせしまに'),
+  CardData(10,  'これやこの ゆくもかへるも わかれては', 'しるもしらぬも あふさかのせき'),
+  CardData(11,  'わたのはら やそしまかけて こぎいでぬと', 'ひとにはつげよ あまのつりぶね'),
+  CardData(12,  'あまつかぜ くものかよひぢ ふきとぢよ', 'をとめのすがた しばしとどめむ'),
+  CardData(13,  'つくばねの みねよりおつる みなのがわ', 'こひぞつもりて ふちとなりぬる'),
+  CardData(14,  'みちのくの しのぶもぢずり たれゆゑに', 'みだれそめにし われならなくに'),
+  CardData(15,  'きみがため はるののにいでて わかなつむ', 'わがころもでに ゆきはふりつつ'),
+  CardData(16,  'たちわかれ いなばのやまの みねにおふる', 'まつとしきかば いまかへりこむ'),
+  CardData(17,  'ちはやぶる かみよもきかず たつたがわ', 'からくれなゐに みづくくるとは'),
+  CardData(18,  'すみのゑの　きしによるなみ　よるさへや', 'ゆめのかよひぢ　ひとめよくらむ'),
+  CardData(19,  'なにはがた みじかきあしの ふしのまも', 'あはでこのよを すぐしてよとや'),
+  CardData(20,  'わびぬれば いまはたおなじ なにはなる', 'みをつくしても あはむとぞおもふ'),
+  CardData(21,  'いまこむと いひしばかりに ながつきの', 'ありあけのつきを まちいでつるかな'),
+  CardData(22,  'ふくからに あきのくさきも しをるれば', 'むべやまかぜを あらしといふらむ'),
+  CardData(23,  'つきみれば ちぢにものこそ かなしけれ', 'わがみひとつの あきにはあらねど'),
+  CardData(24,  'このたびは ぬさもとりあへず たむけやま', 'もみぢのにしき かみのまにまに'),
+  CardData(25,  'なにしおはば　あふさかやまの　さねかづら', 'ひとにしられで　くるよしもがな'),
+  CardData(26,  'をぐらやま みねのもみぢば こころあらば', 'いまひとたびの みゆきまたなむ'),
+  CardData(27,  'みかのはら わきてながるる いづみがわ', 'いつみきとてか こひしかるらむ'),
+  CardData(28,  'やまざとは ふゆぞさびしさ まさりける', 'ひとめもくさも かれぬとおもへば'),
+  CardData(29,  'こころあてに をらばやをらむ はつしもの', 'おきまどはせる しらぎくのはな'),
+  CardData(30,  'ありあけの つれなくみえし わかれより', 'あかつきばかり うきものはなし'),
+  CardData(31,  'あさぼらけ ありあけのつきと みるまでに', 'よしののさとに ふれるしらゆき'),
+  CardData(32,  'やまがはに かぜのかけたる しがらみは', 'ながれもあへぬ もみぢなりけり'),
+  CardData(33,  'ひさかたの ひかりのどけき はるのひに', 'しづこころなく はなのちるらむ'),
+  CardData(34,  'たれをかも しるひとにせむ たかさごの', 'まつもむかしの ともならなくに'),
+  CardData(35,  'ひとはいさ こころもしらず ふるさとは', 'はなぞむかしの かににほひける'),
+  CardData(36,  'なつのよは まだよひながら あけぬるを', 'くものいづこに つきやどるらむ'),
+  CardData(37,  'しらつゆに かぜのふきしく あきののは', 'つらぬきとめぬ たまぞちりける'),
+  CardData(38,  'わすらるる みをばおもはず ちかひてし', 'ひとのいのちの をしくもあるかな'),
+  CardData(39,  'あさぢふの をののしのはら しのぶれど', 'あまりてなどか ひとのこひしき'),
+  CardData(40,  'しのぶれど いろにいでにけり わがこひは', 'ものやおもふと ひとのとふまで'),
+  CardData(41,  'こひすてふ わがなはまだき たちにけり', 'ひとしれずこそ おもひそめしか'),
+  CardData(42,  'ちぎりきな かたみにそでを しぼりつつ', 'すゑのまつやま なみこさじとは'),
+  CardData(43,  'あひみての のちのこころに くらぶれば', 'むかしはものを おもはざりけり'),
+  CardData(44,  'あふことの たえてしなくば なかなかに', 'ひとをもみをも うらみざらまし'),
+  CardData(45,  'あはれとも いふべきひとは おもほえで', 'みのいたづらに なりぬべきかな'),
+  CardData(46,  'ゆらのとを わたるふなびと かぢをたえ', 'ゆくへもしらぬ こひのみちかな'),
+  CardData(47,  'やへむぐら しげれるやどの さびしきに', 'ひとこそみえね あきはきにけり'),
+  CardData(48,  'かぜをいたみ いはうつなみの おのれのみ', 'くだけてものを おもふころかな'),
+  CardData(49,  'みかきもり ゑじのたくひの よるはもえ', 'ひるはきえつつ ものをこそもへ'),
+  CardData(50,  'きみがため をしからざりし いのちさへ', 'ながくもがなと おもひけるかな'),
+  CardData(51,  'かくとだに えやはいぶきの さしもぐさ', 'さしもしらじな もゆるおもひを'),
+  CardData(52,  'あけぬれば くるるものとは しりながら', 'なほうらめしき あさぼらけかな'),
+  CardData(53,  'なげきつつ ひとりぬるよの あくるまは', 'いかにひさしき ものとかはしる'),
+  CardData(54,  'わすれじの ゆくすゑまでは かたければ', 'けふをかぎりの いのちともがな'),
+  CardData(55,  'たきのおとは たえてひさしく なりぬれど', 'なこそながれて なほきこえけれ'),
+  CardData(56,  'あらざらむ このよのほかの おもひでに', 'いまひとたびの あふこともがな'),
+  CardData(57,  'めぐりあひて みしやそれとも わかぬまに', 'くもがくれにし よはのつきかな'),
+  CardData(58,  'ありまやま ゐなのささはら かぜふけば', 'いでそよひとを わすれやはする'),
+  CardData(59,  'やすらはで ねなましものを さよふけて', 'かたぶくまでの つきをみしかな'),
+  CardData(60,  'おほえやま いくののみちの とほければ', 'まだふみもみず あまのはしだて'),
+  CardData(61,  'いにしへの ならのみやこの やへざくら', 'けふここのえに にほひぬるかな'),
+  CardData(62,  'よをこめて とりのそらねは はかるとも', 'よにあふさかの せきはゆるさじ'),
+  CardData(63,  'いまはただ おもひたえなむ とばかりを', 'ひとづてならで いふよしもがな'),
+  CardData(64,  'あさぼらけ うぢのかはぎり たえだえに', 'あらはれわたる せぜのあじろぎ'),
+  CardData(65,  'うらみわび ほさぬそでだに あるものを', 'こひにくちなむ なこそをしけれ'),
+  CardData(66,  'もろともに あはれとおもへ やまざくら', 'はなよりほかに しるひともなし'),
+  CardData(67,  'はるのよの ゆめばかりなる たまくらに', 'かひなくたたむ なこそをしけれ'),
+  CardData(68,  'こころにも あらでうきよに ながらへば', 'こひしかるべき よはのつきかな'),
+  CardData(69,  'あらしふく みむろのやまの もみぢばは', 'たつたのかはの にしきなりけり'),
+  CardData(70,  'さびしさに やどをたちいでて ながむれば', 'いづこもおなじ あきのゆふぐれ'),
+  CardData(71,  'ゆふされば かどたのいなば おとづれて', 'あしのまろやに あきかぜぞふく'),
+  CardData(72,  'おとにきく たかしのはまの あだなみは', 'かけじやそでの ぬれもこそすれ'),
+  CardData(73,  'たかさごの をのへのさくら さきにけり', 'とやまのかすみ たたずもあらなむ'),
+  CardData(74,  'うかりける ひとをはつせの やまおろしよ', 'はげしかれとは いのらぬものを'),
+  CardData(75,  'ちぎりおきし させもがつゆを いのちにて', 'あはれことしの あきもいぬめり'),
+  CardData(76,  'わたのはら こぎいでてみれば ひさかたの', 'くもゐにまがふ おきつしらなみ'),
+  CardData(77,  'せをはやみ いはにせかるる たきがはの', 'われてもすゑに あはむとぞおもふ'),
+  CardData(78,  'あはぢしま かよふちどりの なくこゑに', 'いくよねざめぬ すまのせきもり'),
+  CardData(79,  'あきかぜに たなびくくもの たえまより', 'もれいづるつきの かげのさやけさ'),
+  CardData(80,  'ながからむ こころもしらず くろかみの', 'みだれてけさは ものをこそおもへ'),
+  CardData(81,  'ほととぎす なきつるかたを ながむれば', 'ただありあけの つきぞのこれる'),
+  CardData(82,  'おもひわび さてもいのちは あるものを', 'うきにたへぬは なみだなりけり'),
+  CardData(83,  'よのなかよ みちこそなけれ おもひいる', 'やまのおくにも しかぞなくなる'),
+  CardData(84,  'ながらへば またこのごろや しのばれむ', 'うしとみしよぞ いまはこひしき'),
+  CardData(85,  'よもすがら ものおもふころは あけやらで', 'ねやのひまさへ つれなかりけり'),
+  CardData(86,  'なげけとて つきやはものを おもはする', 'かこちがほなる わがなみだかな'),
+  CardData(87,  'むらさめの つゆもまだひぬ まきのはに', 'きりたちのぼる あきのゆふぐれ'),
+  CardData(88,  'なにはえの あしのかりねの ひとよゆゑ', 'みをつくしてや こひわたるべき'),
+  CardData(89,  'たまのをよ たえなばたえね ながらへば', 'しのぶることの よわりもぞする'),
+  CardData(90,  'みせばやな をじまのあまの そでだにも', 'ぬれにぞぬれし いろはかはらず'),
+  CardData(91,  'きりぎりす なくやしもよの さむしろに', 'ころもかたしき ひとりかもねむ'),
+  CardData(92,  'わがそでは しほひにみえぬ おきのいしの', 'ひとこそしらね かわくまもなし'),
+  CardData(93,  'よのなかは つねにもがもな なぎさこぐ', 'あまのをぶねの つなでかなしも'),
+  CardData(94,  'みよしのの やまのあきかぜ さよふけて', 'ふるさとさむく ころもうつなり'),
+  CardData(95,  'おほけなく うきよのたみに おほふかな', 'わがたつそまに すみぞめのそで'),
+  CardData(96,  'はなさそふ あらしのにはの ゆきならで', 'ふりゆくものは わがみなりけり'),
+  CardData(97,  'こぬひとを まつほのうらの ゆふなぎに', 'やくやもしほの みもこがれつつ'),
+  CardData(98,  'かぜそよぐ ならのをがはの ゆふぐれは', 'みそぎぞなつの しるしなりける'),
+  CardData(99,  'ひともをし ひともうらめし あぢきなく', 'よをおもふゆゑに ものおもふみは'),
+  CardData(100, 'ももしきや ふるきのきばの しのぶにも', 'なほあまりある むかしなりけり'),
+];
+
+
+# ===== FILE: lib/data/reward_catalog.dart =====
+// lib/data/reward_catalog.dart
+import '../providers/game_state.dart'; // Rank を使う
+
+class RewardCatalog {
+  // 未取得枠
+  static const String hatena = 'assets/images/gallery/hatena.png';
+
+  // コンプリート画像
+  static const String completeImage = 'assets/images/gallery/complete.png';
+
+  /// ギャラリーの固定スロット（インデックスが位置を表す）
+  /// 例: Sが2枚, Aが2枚, ... Dが2枚, 最後がコンプリート
+  static const List<String> slots = [
+    'assets/images/gallery/S_01.png', // 0
+    'assets/images/gallery/S_02.png', // 1
+    'assets/images/gallery/A_01.png', // 2
+    'assets/images/gallery/A_02.png', // 3
+    'assets/images/gallery/B_01.png', // 4
+    'assets/images/gallery/B_02.png', // 5
+    'assets/images/gallery/C_01.png', // 6
+    'assets/images/gallery/C_02.png', // 7
+    'assets/images/gallery/D_01.png', // 8
+    'assets/images/gallery/D_02.png', // 9
+    completeImage,                    // 10 = コンプリート枠
+  ];
+
+  static const int completeIndex = 10;
+
+  // ランク→スロット位置
+  static const Map<Rank, List<int>> byRank = {
+    Rank.S: [0, 1],
+    Rank.A: [2, 3],
+    Rank.B: [4, 5],
+    Rank.C: [6, 7],
+    Rank.D: [8, 9],
+  };
+
+  // 旧コードが参照しているシンプルな別名
+  static List<int> get sIndices => byRank[Rank.S]!;
+  static List<int> get aIndices => byRank[Rank.A]!;
+  static List<int> get bIndices => byRank[Rank.B]!;
+  static List<int> get cIndices => byRank[Rank.C]!;
+  static List<int> get dIndices => byRank[Rank.D]!;
+
+  // コンプリート条件: 全ランク画像が揃っている
+  static bool isComplete(Set<int> owned) {
+    for (final group in byRank.values) {
+      for (final i in group) {
+        if (!owned.contains(i)) return false;
+      }
+    }
+    return true;
+  }
+
+  // index -> 表示名（S-1 / A-2 / ... / コンプリート）
+  static String labelOf(int index) {
+    if (index == completeIndex) return 'コンプリート';
+    for (final entry in byRank.entries) {
+      final pos = entry.value.indexOf(index);
+      if (pos != -1) {
+        final n = pos + 1;
+        return '${entry.key.name}-$n'; // 例: S-1, D-2
+      }
+    }
+    return '#${index + 1}';
+  }
+
+  // 通常スロット(= コンプリート以外)
+  static List<int> get normalIndices =>
+      List<int>.generate(slots.length - 1, (i) => i);
+}
+
+
+# ===== FILE: lib/models/card_data.dart =====
+class CardData {
+  final int id;
+  final String upper;
+  final String lower;
+  const CardData(this.id, this.upper, this.lower);
+
+  // ← ここに書く
+  String get imagePath =>
+      'assets/images/${id.toString().padLeft(3, '0')}.png';
+}
+
+# ===== FILE: lib/providers/game_provider.dart =====
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'game_state.dart';
+
+final gameProvider =
+ChangeNotifierProvider<GameState>((ref) => GameState());
+
+# ===== FILE: lib/providers/game_state.dart =====
+import 'dart:async';
+import 'dart:math';
+import '../data/cards.dart';
+import '../models/card_data.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+enum Rank { S, A, B, C, D }
+
+Rank calcRank(int accuracy, double avgSec) {
+  // 速いほど上：avgSec は小さいほど良い
+  if (accuracy == 100 && avgSec <= 0.5) return Rank.S;
+  if (accuracy >= 95 && avgSec <= 1.0) return Rank.A;
+  if (accuracy >= 90 && avgSec <= 2.0) return Rank.B;
+  if (accuracy >= 80 && avgSec <= 3.0) return Rank.C;
+  return Rank.D;
+}
+
+class GameState extends ChangeNotifier {
+  final _rng = Random();
+  bool finished = false;           // ゲーム終了フラグ
+
+  // 公開プロパティ
+  late List<CardData> selfCards, enemyCards;
+  late CardData current;
+  int score = 0;
+  int remainingTime = 10;            // UIに残秒を出したい場合用
+  int elapsedSec    = 0;             // 読みはじめからの経過秒（UI表示用）
+
+  static const int maxRound = 10;
+
+  int round = 0;               // 何問目か (1〜10)
+  int correct = 0;             // 正解数
+  int wrong   = 0;             // 誤タップ数 ※タイムアップは wrong に含めない
+  int totalSec = 0;            // 正解に要した秒数合計 (10 秒 - remainingTime)
+
+  // 内部
+  late List<CardData> _deck;          // ← _remaining をリネーム
+  Timer? _phaseTimer;                 // 上下句 10 秒用
+  DateTime _startAt = DateTime.now();
+
+  bool _started = false;
+  GameState() {
+    _prepareDeck();        // 山札だけ用意、タイマーは動かさない
+  }
+
+  void startGame() {
+    if (_started) return;
+    _started = true;
+    finished    = false;
+    score       = round = correct = wrong = totalSec = 0;
+    elapsedSec  = 0;
+
+    _prepareDeck();
+    _nextRound();          // ← ここで初めてタイマーが動く
+  }
+
+  void _prepareDeck() {
+    _deck = List<CardData>.from(cards)..shuffle(_rng);
+  }
+
+  /* 6枚場札を作って current を決める */
+  void _nextRound() {
+    if (_deck.length < 6) {
+      finished = true;                // デッキ不足＝終了
+      _phaseTimer?.cancel();
+      notifyListeners();
+      return;
+    }
+
+    current = _deck.removeLast();
+    _deck.shuffle(_rng);
+    final wrong5 = _deck.take(5).toList();
+    _deck.removeRange(0, 5);
+
+    final List<CardData> pool = [...wrong5, current]..shuffle(_rng);
+    selfCards  = pool.sublist(0, 3);
+    enemyCards = pool.sublist(3);
+
+    notifyListeners();
+  }
+
+  String rollingMsg = '';     // 表示するメッセージ
+  int countdown = 0;          // 3,2,1,0 で 0 の時に流れ開始
+
+  /// true=正解, false=誤答
+  bool tap(CardData tapped) {
+    final tookSec = 10 - remainingTime;
+    final isCorrect = tapped == current;
+
+    if (isCorrect) {
+      correct++;
+      totalSec += tookSec;
+    } else {
+      wrong++;
+    }
+
+    _phaseTimer?.cancel();
+    _goNextSong();            // 次問題へ
+    return isCorrect;
+  }
+
+  void _startPhaseTimer() {
+    _phaseTimer?.cancel();
+    remainingTime = 10;
+    elapsedSec    = 0;
+    _startAt = DateTime.now();
+
+    _phaseTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      elapsedSec    = DateTime.now().difference(_startAt).inSeconds;
+      if (elapsedSec < 0) elapsedSec = 0;
+      remainingTime = 10 - elapsedSec;
+      if (remainingTime <= 0) {
+        t.cancel();
+        _handleTimeUp();
+      }
+      notifyListeners();
+    });
+  }
+
+  void _handleTimeUp() {
+    wrong++;                  // お手付き扱い
+    _goNextSong();
+  }
+
+  void _goNextSong() {
+    round++;                              // 進捗更新
+    if (round >= maxRound) {
+      finished = true;                 // 10 問終了
+      _phaseTimer?.cancel();
+      _saveHighScore();
+      notifyListeners();
+      return;
+    }
+
+    selfCards.remove(current);
+    enemyCards.remove(current);
+    if (_deck.isNotEmpty) {
+      (selfCards.length < 3 ? selfCards : enemyCards)
+          .add(_deck.removeLast());
+    }
+
+    // 新しい並べ替え（自陣⇔敵陣も再シャッフルでOK）
+    final List<CardData> pool = [...selfCards, ...enemyCards]..shuffle(_rng);
+    selfCards  = pool.sublist(0, 3);
+    enemyCards = pool.sublist(3);
+
+    current = pool[_rng.nextInt(6)];
+    notifyListeners();
+  }
+
+  /// 3,2,1 のカウントが 0 になった瞬間に呼び出す
+  void startMeasurement() {
+    _startPhaseTimer();
+  }
+
+  Future<void> _saveHighScore() async {
+    final prefs = await SharedPreferences.getInstance();
+    final accuracy = (correct / maxRound * 100).round();
+    final avgSec   = correct == 0 ? 0.0 : totalSec / correct;
+    final rank     = calcRank(accuracy, avgSec).name;
+    // 例： accuracy と avgSec も保存しておく
+    await prefs.setInt ('bestAccuracy', accuracy);
+    await prefs.setDouble('bestAvgSec', avgSec.toDouble());
+    await prefs.setString('bestRank', rank);
+  }
+
+  void resetGame() {
+    _phaseTimer?.cancel();
+    _started = false;
+    finished = false;
+    score = round = correct = wrong = totalSec = 0;
+    elapsedSec = 0;
+    _prepareDeck();        // 次回 startGame まで待機
+  }
+
+  @override
+  void dispose() {
+    _phaseTimer?.cancel();
+    super.dispose();
+  }
+}
+
+
+
+# ===== FILE: lib/providers/settings_provider.dart =====
+// lib/providers/settings_provider.dart
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+
+final soundOnProvider = StateProvider<bool>((ref) => true);
+final textFlowOnProvider = StateProvider<bool>((ref) => true); // 文字スクロールON/OFF
+
+# ===== FILE: lib/screens/gallery_screen.dart =====
+// lib/screens/gallery_screen.dart
+import 'package:flutter/material.dart';
+import '../widgets/background_scaffold.dart';
+import '../data/reward_catalog.dart';
+import '../services/gallery_service.dart';
+import '../providers/game_state.dart'; // Rank 見出し用
+import 'package:go_router/go_router.dart';
+import '../services/media_service.dart';
+
+class GalleryScreen extends StatefulWidget {
+  const GalleryScreen({super.key});
+  @override
+  State<GalleryScreen> createState() => _GalleryScreenState();
+}
+
+class _GalleryScreenState extends State<GalleryScreen> {
+  Set<int> _owned = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final s = await GalleryService.loadOwned();
+    if (mounted) setState(() => _owned = s);
+  }
+
+  Widget _slot(int index) {
+    final got = _owned.contains(index) ||
+        (index == RewardCatalog.completeIndex && RewardCatalog.isComplete(_owned));
+    final path = got ? RewardCatalog.slots[index] : RewardCatalog.hatena;
+    final isPlaceholder = !got; // 未取得 or まだコンプリート解禁前
+
+    return GestureDetector(
+      // 未取得はタップ不可（拡大/保存の導線なし）
+      onTap: isPlaceholder ? null : () {
+        showDialog(
+          context: context,
+          barrierDismissible: true,
+          builder: (_) => Dialog(
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            backgroundColor: Colors.transparent,
+            child: Stack(
+              children: [
+                // 画像本体
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    color: Colors.black.withOpacity(0.85),
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // タイトル（S-1 など）
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            RewardCatalog.labelOf(index),
+                            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        Flexible(child: Image.asset(path, fit: BoxFit.contain)),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.download),
+                              label: const Text('保存'),
+                              onPressed: () async {
+                                final ok = await MediaService.saveAssetToGallery(path, name: RewardCatalog.labelOf(index));
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(ok ? '保存しました' : '保存に失敗しました')),
+                                  );
+                                }
+                              },
+                            ),
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.ios_share),
+                              label: const Text('共有'),
+                              onPressed: () async {
+                                await MediaService.shareAsset(
+                                  path,
+                                  fileName: '${RewardCatalog.labelOf(index)}.png',
+                                  text: '百人一首 練習アプリのギャラリー画像',
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                      ],
+                    ),
+                  ),
+                ),
+                // 閉じる
+                Positioned(
+                  right: 0, top: 0,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.black12,
+            image: DecorationImage(image: AssetImage(path), fit: BoxFit.cover),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _section(String title, List<int> indices, {int crossAxisCount = 3}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+          ),
+          GridView.count(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: 1,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: indices.map(_slot).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BackgroundScaffold(
+      appBar: AppBar(title: const Text('ギャラリー')),
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              children: [
+                _section('S ランク', RewardCatalog.sIndices),
+                _section('A ランク', RewardCatalog.aIndices),
+                _section('B ランク', RewardCatalog.bIndices),
+                _section('C ランク', RewardCatalog.cIndices),
+                _section('D ランク', RewardCatalog.dIndices),
+                _section('コンプリート', [RewardCatalog.completeIndex], crossAxisCount: 1),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: () => context.go('/'),
+            child: const Text('スタートに戻る'),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+}
+
+
+# ===== FILE: lib/screens/highscore_screen.dart =====
+import 'package:auto_size_text/auto_size_text.dart';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/background_scaffold.dart';
+
+// 追加
+import '../services/gallery_service.dart';
+import '../data/reward_catalog.dart';
+import '../providers/game_state.dart'; // Rank enum 用
+
+class HighScoreScreen extends StatelessWidget {
+  const HighScoreScreen({super.key});
+
+  Future<Map<String, dynamic>> _load() async {
+    final p = await SharedPreferences.getInstance();
+    final owned = await GalleryService.loadOwned(); // 取得済みID
+    return {
+      'accuracy': p.getInt('bestAccuracy') ?? 0,
+      'avgSec'  : p.getDouble('bestAvgSec') ?? 0.0,
+      'rankStr' : p.getString('bestRank') ?? 'D',
+      'owned'   : owned,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BackgroundScaffold(
+      appBar: AppBar(title: const Text('あなたのランク')),
+      child: FutureBuilder<Map<String, dynamic>>(
+        future: _load(),
+        builder: (ctx, snap) {
+          if (!snap.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final d        = snap.data!;
+          final rankStr  = d['rankStr'] as String;
+          final accuracy = d['accuracy'] as int;
+          final avgSec   = d['avgSec'] as double;
+          final owned    = d['owned'] as Set<int>;
+
+          // String -> Rank
+          final Rank rankEnum = Rank.values.firstWhere(
+                (e) => e.name == rankStr,
+            orElse: () => Rank.D,
+          );
+
+          // このランクのスロット(例: Cなら [6,7])
+          final indices = RewardCatalog.byRank[rankEnum]!;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    AutoSizeText(
+                      '最高ランク : ${rankEnum.name}',
+                      maxLines: 1,
+                      minFontSize: 18,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 8),
+                    Text('正解率 : $accuracy %'),
+                    Text('平均取得 : ${avgSec.toStringAsFixed(1)} 秒'),
+
+                    const SizedBox(height: 20),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '取得済み画像（${rankEnum.name}）',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // ランクの2枠を固定配置。未取得は hatena を表示
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        for (final i in indices)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.asset(
+                              owned.contains(i)
+                                  ? RewardCatalog.slots[i]
+                                  : RewardCatalog.hatena,
+                              width: MediaQuery.of(context).size.width / 3,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 32),
+                    ElevatedButton(
+                      onPressed: () => context.go('/'),
+                      child: const Text('スタートに戻る'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+
+# ===== FILE: lib/screens/howto_screen.dart =====
+import 'package:auto_size_text/auto_size_text.dart';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../widgets/background_scaffold.dart';
+
+class HowToScreen extends StatelessWidget {
+  const HowToScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return BackgroundScaffold(
+      appBar: AppBar(title: const Text('遊び方')),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const SizedBox(height: 8),
+
+          // 1) 操作方法
+          SectionCard(
+            title: '＜操作方法＞',
+            children: [
+              _BulletRow(icon: Icons.play_circle, text: '上の句が流れたら対応する下の句札をタップ'),
+              _BulletRow(icon: Icons.analytics_outlined, text: '10問連続で正解率と平均取得秒数を計測'),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // 2) プレイ中の設定（ミュート・文字表示）
+          SectionCard(
+            title: '＜プレイ中の設定＞',
+            children: const [
+              _BulletRow(icon: Icons.volume_up, text: 'ミュート切替：右上のスピーカーで効果音のON/OFF'),
+              _BulletRow(icon: Icons.subtitles, text: '文字表示切替：右上の「文」アイコンで句の表示ON/OFF'),
+              _Footnote(text: '※プレイ中いつでも変更できます。'),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // 3) ランク判定基準
+          SectionCard(
+            title: '＜ランク判定基準＞',
+            children: [
+              _RankRow(rank: 'S', rule: '正解率 100% 以上 かつ 平均取得 0.5 秒以内'),
+              _RankRow(rank: 'A', rule: '正解率 95% 以上 かつ 平均取得 1 秒以内'),
+              _RankRow(rank: 'B', rule: '正解率 90% 以上 かつ 平均取得 2 秒以内'),
+              _RankRow(rank: 'C', rule: '正解率 80% 以上 かつ 平均取得 3 秒以内'),
+              _RankRow(rank: 'D', rule: '上記以外'),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          Center(
+            child: ElevatedButton(
+              onPressed: () => context.go('/'),
+              child: const Text('スタートに戻る'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 共通カード
+class SectionCard extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+  const SectionCard({super.key, required this.title, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: textTheme.bodyMedium),
+            const SizedBox(height: 8),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 箇条書き（アイコン付き）
+class _BulletRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _BulletRow({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodyMedium;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20),
+          const SizedBox(width: 8),
+          Expanded(child: AutoSizeText(text, style: style, maxLines: 2)),
+        ],
+      ),
+    );
+  }
+}
+
+/// ランク行（見た目統一）
+class _RankRow extends StatelessWidget {
+  final String rank;
+  final String rule;
+  const _RankRow({required this.rank, required this.rule});
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodyMedium;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: Theme.of(context).colorScheme.surfaceVariant,
+            ),
+            child: Text(rank, style: Theme.of(context).textTheme.labelLarge),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: AutoSizeText(rule, style: style, maxLines: 2)),
+        ],
+      ),
+    );
+  }
+}
+
+/// フッターメモ
+class _Footnote extends StatelessWidget {
+  final String text;
+  const _Footnote({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodySmall;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Text(text, style: style),
+    );
+  }
+}
+
+
+# ===== FILE: lib/screens/play_screen.dart =====
+// lib/screens/play_screen.dart
+import 'dart:ui';                 // ← ぼかし用（BackdropFilter）
+import 'package:flutter/services.dart';
+import 'dart:math' show pi;
+import 'package:auto_size_text/auto_size_text.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:go_router/go_router.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../models/card_data.dart';
+import '../providers/game_provider.dart';
+import '../providers/game_state.dart';
+import '../widgets/background_scaffold.dart';
+import '../services/audio_service.dart';
+import '../providers/settings_provider.dart';
+
+class PlayScreen extends HookConsumerWidget {
+  const PlayScreen({super.key});
+
+  /* ---------- ヘルパ ---------- */
+  void _handleTap(BuildContext ctx, GameState g, CardData c, KarutaAudio audio) {
+    audio.stop();                 // 次の問題へ行くので停止
+    final ok = g.tap(c);
+    _flashCenter(ctx, ok: ok);      // ★ SnackBar の代わりに中央フラッシュ
+  }
+
+  void _flashCenter(BuildContext context, {required bool ok}) {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    if (overlay == null) return;
+
+    final Color color = ok ? Colors.green : Colors.red;
+    final String label = ok ? '正解！' : '残念';
+    // ハプティックは任意
+    ok ? HapticFeedback.mediumImpact() : HapticFeedback.heavyImpact();
+
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => Positioned.fill(
+        child: IgnorePointer( // ★背面のタップをブロックしない
+          child: Center(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                child: AnimatedScale(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutBack,
+                  scale: 1.0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.92),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [BoxShadow(color: color.withOpacity(0.35), blurRadius: 20)],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(ok ? Icons.check_circle : Icons.close_rounded,
+                            color: Colors.white, size: 28),
+                        const SizedBox(width: 12),
+                        Text(label,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(entry);
+    // 650ms後に自動で消す
+    Future.delayed(const Duration(milliseconds: 650)).then((_) {
+      // removeは1回だけ
+      try { entry.remove(); } catch (_) {}
+    });
+  }
+
+  Future<void> _confirmBack(BuildContext ctx, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        content: const Text('タイトルへ戻りますか？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('キャンセル')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true),  child: const Text('OK')),
+        ],
+      ),
+    );
+    if (ok ?? false) {
+      ref.read(gameProvider).resetGame();
+      if (ctx.mounted) ctx.go('/');
+    }
+  }
+
+  Widget _ticker(bool counting, int counter, Animation<Offset> slide, String text, {required bool flowOn}) {
+    return SizedBox(
+      height: 64,                        // 高さ固定でレイアウトを揺らさない
+      child: counting
+          ? Center(
+        child: AutoSizeText(
+          '$counter',
+          maxLines: 1,
+          minFontSize: 20,
+          style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
+        ),
+      )
+          : (flowOn
+          // ON: スライド表示
+          ? SlideTransition(
+          position: slide,
+          child: AutoSizeText(
+              text,
+              maxLines: 2,
+              minFontSize: 12,
+              overflow: TextOverflow.fade,
+              style: const TextStyle(fontSize: 20),
+          ),
+      )
+    // OFF: 文字そのものを非表示に（高さは SizedBox で確保）
+          : const SizedBox.shrink()),
+    );
+  }
+
+  /* ------------------------------ build ------------------------------ */
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final g        = ref.watch(gameProvider);
+    final notifier = ref.read(gameProvider);
+    final soundOn  = ref.watch(soundOnProvider);
+    final flowOn   = ref.watch(textFlowOnProvider);
+    final audio    = useMemoized(() => KarutaAudio(), []);
+    useEffect(() { return () { audio.dispose(); }; }, [audio]); // 破棄
+
+    /* ゲーム終了時に結果画面へ */
+    useEffect(() {
+      if (g.finished) {
+        WidgetsBinding.instance.addPostFrameCallback(
+              (_) => context.mounted ? context.go('/result') : null,
+        );
+      }
+      return null;
+    }, [g.finished]);
+
+    /* カウントダウン用 hooks */
+    final isCounting = useState(true);
+    final counter    = useState(3);
+    final animCtrl   = useAnimationController(duration: const Duration(seconds: 8));
+    final slideAnim  = Tween(begin: const Offset(1, 0), end: const Offset(-1, 0))
+        .animate(CurvedAnimation(parent: animCtrl, curve: Curves.linear));
+
+    /* 3→2→1 → 詠み上げ開始（音声はプリロードしておき、0の瞬間に resume） */
+    useEffect(() {
+      if (isCounting.value) {
+        var cancelled = false;
+        Future.doWhile(() async {
+          await Future.delayed(const Duration(seconds: 1));
+          if (cancelled) return false;
+          counter.value -= 1;
+          if (counter.value == 0) {
+            isCounting.value = false;
+            // 同期性を上げるため同フレームで実行
+            animCtrl.forward();
+            // 準備済みをそのまま再生（ミュートなら音量0で進行）
+            audio.playPrepared(muted: !soundOn);
+            // ★ ここで 10 秒計測を開始（3,2,1 の後にスタート）
+            ref.read(gameProvider).startMeasurement();
+            return false;
+          }
+          return true;
+        });
+        return () { cancelled = true; };
+      }
+      return null;
+    }, [isCounting.value, g.current.id]); // soundOnは入れない（ズレ回避）
+
+    /* 新しい札になったらリセット */
+    useEffect(() {
+      // 新しい札の音源を先にロード→巻き戻して一時停止
+      audio.prepareUpper(g.current.id);
+      isCounting.value = false;
+      Future.microtask(() => isCounting.value = true);
+      counter.value = 3;
+      animCtrl.reset();
+      return null;
+    }, [g.current.id]);
+
+    /* --------- レイアウト --------- */
+    final w = MediaQuery.of(context).size.width;
+    const horizontalPadding = 8.0;       // SingleChildScrollView の左右 padding と合わせる
+    const spacing = 8.0;                  // Wrap の spacing
+    const cols = 3;
+
+    // 画面幅から 3 列のカード幅を逆算（最小90 / 最大240に丸める）
+    final contentW = w - horizontalPadding * 2;
+    final rawCardW = (contentW - spacing * (cols - 1)) / cols;
+    final cardW = rawCardW.clamp(90.0, 240.0);
+
+    // 行間は固定でOK
+    const gapH = 16.0;
+
+
+    Widget cardWidget(CardData c, {bool flip = false}) => GestureDetector(
+        onTap: () {
+    // カウントダウン中はタップ無効（視覚的フィードバックだけ出したければここで軽いバイブ等）
+              if (isCounting.value) return;
+              _handleTap(context, notifier, c, audio);
+            },
+      child: Transform.rotate(
+        angle: flip ? pi : 0,
+        child: Image.asset(c.imagePath, width: cardW),
+      ),
+    );
+    return BackgroundScaffold(
+        appBar: AppBar(
+            title: const Text('百人一首 - 札合わせ'),
+            actions: [
+              IconButton(
+                tooltip: soundOn ? 'サウンドOFF' : 'サウンドON',
+                icon: Icon(soundOn ? Icons.volume_up : Icons.volume_off),
+                onPressed: () {
+                  ref.read(soundOnProvider.notifier).state = !soundOn;
+                  // 再生は止めない。音量だけ切り替える
+                  audio.setMuted(soundOn); // soundOnは旧値なので「今からミュートするか」を表す
+                },
+              ),
+              IconButton(
+                  tooltip: flowOn ? '文字スクロールOFF' : '文字スクロールON',
+                  icon: Icon(flowOn ? Icons.subtitles : Icons.subtitles_off),
+                  onPressed: () {
+                    ref.read(textFlowOnProvider.notifier).state = !flowOn;
+                    // アニメは裏で走らせておくので特に制御不要（ONに戻したら途中から見える）
+                    },
+              ),
+            ],
+          ),
+      child: LayoutBuilder(
+        builder: (ctx, constraints) {
+          return SingleChildScrollView(
+            // 画面が小さい端末でも必ずスクロール可能に
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: ConstrainedBox(
+              // ビューポート高に満たないときは最小高さで下まで広げる
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Padding(
+                // SafeArea は BackgroundScaffold 側で入っているので固定パディングでOK
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 敵陣
+                    SizedBox(
+                      width: double.infinity,
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: spacing,
+                        runSpacing: spacing,
+                        children: g.enemyCards
+                            .map((c) => GestureDetector(
+                          onTap: () {
+                            if (isCounting.value) return;
+                            _handleTap(context, notifier, c, audio);
+                          },
+                          child: Transform.rotate(
+                            angle: pi,
+                            child: Image.asset(c.imagePath, width: cardW.toDouble()),
+                          ),
+                        ))
+                            .toList(),
+                      ),
+                    ),
+
+                    SizedBox(height: gapH),
+
+                    // 自陣
+                    SizedBox(
+                      width: double.infinity,
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: spacing,
+                        runSpacing: spacing,
+                        children: g.selfCards
+                            .map((c) => GestureDetector(
+                          onTap: () {
+                            if (isCounting.value) return;
+                            _handleTap(context, notifier, c, audio);
+                          },
+                          child: Image.asset(c.imagePath, width: cardW.toDouble()),
+                        ))
+                            .toList(),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    AutoSizeText(
+                      '問 ${g.round + 1} / ${GameState.maxRound}',
+                      maxLines: 1,
+                      minFontSize: 14,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    _ticker(
+                      isCounting.value,
+                      counter.value,
+                      slideAnim,
+                      g.current.upper,
+                      flowOn: flowOn,
+                    ),
+                    AutoSizeText(
+                      '読みはじめから ${g.elapsedSec} 秒',
+                      maxLines: 1,
+                      minFontSize: 12,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    ElevatedButton(
+                      onPressed: () => _confirmBack(context, ref),
+                      child: const Text('スタートに戻る'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+
+# ===== FILE: lib/screens/privacy_screen.dart =====
+// lib/screens/privacy_screen.dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../widgets/background_scaffold.dart';
+
+const _policyUrl = 'https://doc-hosting.flycricket.io/kyougi-karuta-tokkun-privacy-policy/aeb77bcf-73e8-4707-af0e-0608e39c400d/privacy'; // ←公開URLに差し替え
+
+class PrivacyScreen extends StatelessWidget {
+  const PrivacyScreen({super.key});
+
+  Future<void> _openPolicy(BuildContext context) async {
+    final uri = Uri.parse(_policyUrl);
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ブラウザを開けませんでした')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BackgroundScaffold(
+      appBar: AppBar(title: const Text('プライバシーポリシー')),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('プライバシーポリシーは以下のリンクからご覧いただけます。'),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: () => _openPolicy(context),
+              icon: const Icon(Icons.open_in_browser),
+              label: const Text('ブラウザで開く'),
+            ),
+            const SizedBox(height: 24),
+            TextButton(
+              onPressed: () => context.go('/'),
+              child: const Text('スタートに戻る'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+# ===== FILE: lib/screens/result_screen.dart =====
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../widgets/background_scaffold.dart';
+import 'package:tokkun_kyogikaruta/services/ad_service.dart';
+
+import '../providers/game_provider.dart';
+import '../providers/game_state.dart';
+import '../services/gallery_service.dart';
+import '../data/reward_catalog.dart';
+
+class ResultScreen extends ConsumerStatefulWidget {
+  const ResultScreen({super.key});
+
+  @override
+  ConsumerState<ResultScreen> createState() => _ResultScreenState();
+}
+
+class _ResultScreenState extends ConsumerState<ResultScreen> {
+  bool _grantedOnce = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AdService.showInterstitialOnce();
+      _maybeGrant();
+    });
+  }
+
+  Future<void> _maybeGrant() async {
+    if (_grantedOnce) return;
+    _grantedOnce = true;
+
+    final g = ref.read(gameProvider);
+    final int accuracy = (g.correct / GameState.maxRound * 100).round();
+    final double avgSec = g.correct == 0 ? 0 : g.totalSec / g.correct;
+    final rank = calcRank(accuracy, avgSec);
+
+    // 付与前の状態を保存（complete解禁の検出用）
+    final before = await GalleryService.loadOwned();
+    final id = await GalleryService.grantOne(rank: rank);
+
+    if (!mounted) return;
+
+    if (id != null) {
+      // 獲得演出
+      showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (_) => AlertDialog(
+          title: const Text('画像を獲得！'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(RewardCatalog.slots[id], width: 220, fit: BoxFit.cover),
+              const SizedBox(height: 8),
+              Text('NEW!  ${RewardCatalog.labelOf(id)} を入手しました'),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+          ],
+        ),
+      );
+    }
+
+    // コンプリートが今回で解禁されたらお知らせ（任意）
+    final after = await GalleryService.loadOwned();
+    final justUnlocked = !before.contains(RewardCatalog.completeIndex)
+        &&  after.contains(RewardCatalog.completeIndex);
+    if (justUnlocked && mounted) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('コンプリート！'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(RewardCatalog.completeImage, width: 220, fit: BoxFit.cover),
+              const SizedBox(height: 8),
+              const Text('全ランク画像を集めました！'),
+            ],
+          ),
+          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+        ),
+      );
+    }
+  }
+  @override
+  Widget build(BuildContext context) {
+    final g = ref.read(gameProvider);
+    final int accuracy = (g.correct / GameState.maxRound * 100).round();
+    final double avgSec = g.correct == 0 ? 0 : g.totalSec / g.correct;
+    final rank = calcRank(accuracy, avgSec).name;
+
+    return BackgroundScaffold(
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('--- 結果 ---',
+                style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 12),
+            Text('正解率 : $accuracy %'),
+            Text('平均取得秒数 : ${avgSec.toStringAsFixed(1)} 秒'),
+            const SizedBox(height: 12),
+            Text('ランク : $rank', style: const TextStyle(fontSize: 32)),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                g.resetGame();
+                context.go('/');
+              },
+              child: const Text('スタートへ戻る'),
+            ),
+            TextButton(
+              onPressed: () => context.go('/gallery'),
+              child: const Text('ギャラリーを見る'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+# ===== FILE: lib/screens/title_screen.dart =====
+// lib/screens/title_screen.dart
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:go_router/go_router.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../providers/game_provider.dart';
+import '../widgets/background_scaffold.dart';
+// 広告関係
+import 'package:tokkun_kyogikaruta/widgets/ad_banner.dart';
+import 'package:tokkun_kyogikaruta/services/ad_service.dart';
+
+
+class TitleScreen extends ConsumerWidget {
+  const TitleScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    AdService.prefetchInterstitial(); //広告
+
+    return BackgroundScaffold(
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              '競技かるた特訓',
+              style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                final g = ref.read(gameProvider);
+                g.resetGame();      // スコアなど初期化
+                g.startGame();      // ← ここで初めて 1 問目を作成しタイマー開始
+                context.go('/play');
+              },
+              child: const Text('スタート', style: TextStyle(fontSize: 20)),
+            ),
+            _menuBtn(context,label:'遊び方説明',   onTap:()=>context.go('/howto')),
+            _menuBtn(context,label:'現在のランク',onTap:()=>context.go('/score')),
+            _menuBtn(context,label:'ギャラリー',   onTap:()=>context.go('/gallery')),
+            _menuBtn(context,label:'スコアのリセット', onTap:() async {
+              final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('スコアをリセットしますか？'),
+                    actions: [
+                      TextButton(onPressed: ()=>Navigator.pop(context,false), child: const Text('いいえ')),
+                      TextButton(onPressed: ()=>Navigator.pop(context,true),  child: const Text('はい')),
+                    ],
+                  ));
+              if (ok ?? false) {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.clear();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('リセットしました！')));
+                }
+              }
+            }),
+            // 目立たせない小ボタン
+            TextButton(onPressed:()=>context.go('/privacy'),
+                child: const Text('プライバシーポリシー')),
+            const SizedBox(height: 12),
+            const AdBanner(),   // ★ ここで常に下部にバナー
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _menuBtn(BuildContext ctx,{required String label,required VoidCallback onTap}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical:8.0),
+      child: SizedBox(
+        width: 240,
+        child: ElevatedButton(
+          onPressed: onTap,
+          child: Text(label,style: const TextStyle(fontSize:18)),
+        ),
+      ),
+    );
+  }
+}
+
+# ===== FILE: lib/services/ad_service.dart =====
+// lib/services/ad_service.dart
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+
+class AdService {
+  static bool get _androidMobile => Platform.isAndroid && !kIsWeb;
+
+  // Google配布のテストユニットID（Android）
+  static String get bannerId        => 'ca-app-pub-3940256099942544/6300978111';
+  static String get interstitialId  => 'ca-app-pub-3940256099942544/1033173712';
+
+  // ── Banner ──
+  static BannerAd? createBanner() {
+    if (!_androidMobile) return null;
+    final ad = BannerAd(
+      size: AdSize.banner,
+      adUnitId: bannerId,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdFailedToLoad: (ad, err) { ad.dispose(); },
+      ),
+    )..load();
+    return ad;
+  }
+
+  // ── Interstitial（先読み→1回表示） ──
+  static InterstitialAd? _cached;
+
+  static Future<void> prefetchInterstitial() async {
+    if (!_androidMobile || _cached != null) return;
+    await InterstitialAd.load(
+      adUnitId: interstitialId,
+      request: const AdRequest(),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (ad) => _cached = ad,
+        onAdFailedToLoad: (_) {},
+      ),
+    );
+  }
+
+  static Future<void> showInterstitialOnce() async {
+    final ad = _cached;
+    _cached = null;
+    if (ad == null) return;
+    await ad.show();
+    ad.dispose();
+    // 次回のために再度先読み（fire-and-forget）
+    // unawaited(prefetchInterstitial()); を使わずに呼び出すだけでOK
+    prefetchInterstitial();
+  }
+}
+
+
+# ===== FILE: lib/services/audio_service.dart =====
+// lib/services/audio_service.dart
+import 'package:audioplayers/audioplayers.dart';
+
+class KarutaAudio {
+  final AudioPlayer _player = AudioPlayer();
+  int? _preparedId; // どの札をロード済みか
+
+  KarutaAudio() {
+    // 1トラックずつ再生して終わったら止まる挙動
+    _player.setReleaseMode(ReleaseMode.stop);
+  }
+
+  /// 事前ロードして一時停止。0の瞬間に resume で即再生できる
+  Future<void> prepareUpper(int id) async {
+    final file = 'audio/${id.toString().padLeft(3, '0')}.mp3';
+    if (_preparedId == id) {
+      await _player.seek(Duration.zero);
+      await _player.pause();
+      return;
+    }
+    _preparedId = id;
+    await _player.stop();                      // 旧トラック停止
+    // バージョンにより setSource(AssetSource(...)) か setSourceAsset(...) を使います
+    try {
+      await _player.setSource(AssetSource(file));
+    } catch (_) {
+      await _player.setSourceAsset(file);      // 古いバージョン互換
+    }
+    await _player.seek(Duration.zero);
+    await _player.pause();                     // 準備完了（無音で待機）
+  }
+
+  /// 準備済みを即再生。muted=true ならボリューム0で再生し続ける
+  Future<void> playPrepared({required bool muted}) async {
+    await _player.setVolume(muted ? 0.0 : 1.0);
+    await _player.resume();
+  }
+
+  /// ミュート切替：進行は止めずにボリュームだけ切る/戻す
+  Future<void> setMuted(bool muted) => _player.setVolume(muted ? 0.0 : 1.0);
+
+  Future<void> stop() async {
+    _preparedId = null;
+    await _player.stop();
+  }
+
+  Future<void> dispose() => _player.dispose();
+}
+
+
+# ===== FILE: lib/services/gallery_service.dart =====
+// lib/services/gallery_service.dart
+import 'dart:math';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../data/reward_catalog.dart';
+import '../providers/game_state.dart';
+
+class GalleryService {
+  static const _ownedKey = 'galleryOwnedIds';
+  static final _rng = Random();
+
+  static Future<Set<int>> loadOwned() async {
+    final p = await SharedPreferences.getInstance();
+    final list = p.getStringList(_ownedKey) ?? const [];
+    return list.map(int.parse).toSet();
+  }
+
+  static Future<void> _saveOwned(Set<int> owned) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setStringList(_ownedKey, owned.map((e) => e.toString()).toList());
+  }
+
+  /// 1回の結果につき1枚付与:
+  ///  1) まず該当ランクの未所持からランダム
+  ///  2) そのランクがコンプ済みなら、他ランクの未所持からランダム
+  ///  3) すべて集まった瞬間に completeIndex を自動解禁（別枠）
+  static Future<int?> grantOne({required Rank rank}) async {
+    final owned = await loadOwned();
+
+    // コンプリート枠は通常の候補に含めない
+    int? pickFrom(List<int> pool) {
+      final remains = pool.where((i) => !owned.contains(i)).toList();
+      if (remains.isEmpty) return null;
+      return remains[_rng.nextInt(remains.length)];
+    }
+
+    // ランク限定：そのランクの未取得が無ければ今回は付与なし
+    final group = RewardCatalog.byRank[rank]!;
+    int? granted = pickFrom(group);
+
+    // 何も残っていなければ null（以降は complete 解禁チェックのみ）
+    if (granted != null) {
+      owned.add(granted);
+    }
+
+    // 全ランク画像コンプ→コンプリート枠を自動解禁
+    if (!owned.contains(RewardCatalog.completeIndex) &&
+        RewardCatalog.isComplete(owned)) {
+      owned.add(RewardCatalog.completeIndex);
+      // ここでは granted は変えない（演出は結果画面の justUnlocked で別表示）
+    }
+
+    await _saveOwned(owned);
+    return granted;
+  }
+}
+
+
+# ===== FILE: lib/services/media_service.dart =====
+// lib/services/media_service.dart
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:gal/gal.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+
+class MediaService {
+  static Future<Uint8List> _loadAssetBytes(String assetPath) async {
+    final bd = await rootBundle.load(assetPath);
+    return bd.buffer.asUint8List();
+  }
+
+  static String _basename(String path) => path.split('/').last;
+
+  /// 端末ギャラリーへ保存（アルバム名はお好みで）
+  static Future<bool> saveAssetToGallery(String assetPath, {String? name}) async {
+    try {
+      if (kIsWeb) return false;
+      final bytes = await _loadAssetBytes(assetPath);
+      await Gal.putImageBytes(
+        bytes,
+        album: '競技かるた練習',
+        name: (name ?? _basename(assetPath)).replaceAll('.png', ''),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 共有（X / LINE など）
+  static Future<void> shareAsset(String assetPath, {String? fileName, String? text}) async {
+    final bytes = await _loadAssetBytes(assetPath);
+    final dir = await getTemporaryDirectory();
+    final name = fileName ?? _basename(assetPath);
+    final f = File('${dir.path}/$name');
+    await f.writeAsBytes(bytes, flush: true);
+    await Share.shareXFiles([XFile(f.path, mimeType: 'image/png', name: name)], text: text);
+  }
+}
+
+
+# ===== FILE: lib/widgets/ad_banner.dart =====
+// lib/widgets/ad_banner.dart
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import '../services/ad_service.dart';
+
+class AdBanner extends StatefulWidget {
+  const AdBanner({super.key});
+
+  @override
+  State<AdBanner> createState() => _AdBannerState();
+}
+
+class _AdBannerState extends State<AdBanner> {
+  BannerAd? _ad;
+
+  @override
+  void initState() {
+    super.initState();
+    if (Platform.isAndroid && !kIsWeb && !const bool.fromEnvironment('FLUTTER_TEST')) {
+      _ad = AdService.createBanner();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ad?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ad = _ad;
+    if (ad == null) return const SizedBox.shrink();
+    return SizedBox(
+      width: ad.size.width.toDouble(),
+      height: ad.size.height.toDouble(),
+      child: AdWidget(ad: ad),
+    );
+  }
+}
+
+
+# ===== FILE: lib/widgets/background_scaffold.dart =====
+// lib/widgets/background_scaffold.dart
+import 'package:flutter/material.dart';
+
+class BackgroundScaffold extends StatelessWidget {
+  final Widget child;
+  final PreferredSizeWidget? appBar;
+  const BackgroundScaffold({super.key, required this.child, this.appBar});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      // ── AppBar があるときは extendBodyBehindAppBar を OFF ──
+      extendBodyBehindAppBar: appBar == null,
+      appBar: appBar,
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/background.png'),
+            repeat: ImageRepeat.repeat, // タイル敷きで必ずフィット
+            fit: BoxFit.none,
+          ),
+        ),
+        // SafeArea で上部文字切れを防止
+        child: SafeArea(child: child),
+      ),
+    );
+  }
+}
+
+
