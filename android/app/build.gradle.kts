@@ -16,7 +16,7 @@ val keystoreProperties = Properties().apply {
 
 android {
     namespace = "jp.ymrsystem.karutatokkun" // ←最終的なパッケージ名に変更推奨
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -28,7 +28,7 @@ android {
     defaultConfig {
         applicationId = "jp.ymrsystem.karutatokkun" // ←本番用に固有IDへ
         minSdk = maxOf(23, flutter.minSdkVersion)
-        targetSdk = 35
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
