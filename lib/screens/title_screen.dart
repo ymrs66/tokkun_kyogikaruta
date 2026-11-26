@@ -18,13 +18,24 @@ class TitleScreen extends ConsumerWidget {
     AdService.prefetchInterstitial(); //広告
 
     return BackgroundScaffold(
+      backgroundAsset: 'assets/images/titlebackground.png',
+      backgroundRepeat: ImageRepeat.noRepeat,
+      backgroundFit: BoxFit.cover, // 画面いっぱいに敷く（必要なら一部トリミング）
+      backgroundAlignment: Alignment.center,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              '競技かるた特訓',
-              style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+            Transform.translate(
+              offset: const Offset(0, -120),
+              child: const Text(
+                '競技かるた特訓',
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.red,
+                ),
+              ),
             ),
             const SizedBox(height: 24),
             ElevatedButton(

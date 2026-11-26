@@ -29,6 +29,7 @@ class App extends StatelessWidget {
     return MaterialApp.router(
       title: '競技かるた練習',
       routerConfig: _router,
+      debugShowCheckedModeBanner: false,
       builder: (context, child) {
         final mq = MediaQuery.of(context);
         final clamped = mq.textScaleFactor.clamp(1.0, 1.3);

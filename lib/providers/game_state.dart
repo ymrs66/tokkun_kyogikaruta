@@ -9,8 +9,8 @@ enum Rank { S, A, B, C, D }
 
 Rank calcRank(int accuracy, double avgSec) {
   // 速いほど上：avgSec は小さいほど良い
-  if (accuracy == 100 && avgSec <= 0.5) return Rank.S;
-  if (accuracy >= 95 && avgSec <= 1.0) return Rank.A;
+  if (accuracy == 100 && avgSec <= 1.0) return Rank.S;
+  if (accuracy >= 95 && avgSec <= 1.5) return Rank.A;
   if (accuracy >= 90 && avgSec <= 2.0) return Rank.B;
   if (accuracy >= 80 && avgSec <= 3.0) return Rank.C;
   return Rank.D;
