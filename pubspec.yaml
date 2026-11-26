@@ -24,13 +24,13 @@ dependencies:
   path_provider: ^2.1.4
   permission_handler: ^11.3.1
   url_launcher: ^6.3.0
+  shared_preferences: ^2.2.2   # ← アプリ本体で使うので dependencies に置く
+  auto_size_text: ^3.0.0       # ← 同上
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  shared_preferences: ^2.2.2
-  auto_size_text: ^3.0.0
   flutter_launcher_icons: ^0.13.1
 
 flutter_launcher_icons:
