@@ -77,17 +77,17 @@ gradle.taskGraph.whenReady {
 android {
     namespace = "jp.ymrsystem.karutatokkun" // ←最終的なパッケージ名に変更推奨
     compileSdk = 36
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358" // NDK r28 以降は 16KB ページサイズに既定で対応
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = JavaVersion.VERSION_11.toString() }
+    kotlinOptions { jvmTarget = JavaVersion.VERSION_17.toString() }
 
     defaultConfig {
         applicationId = "jp.ymrsystem.karutatokkun" // ←本番用に固有IDへ
-        minSdk = maxOf(23, flutter.minSdkVersion)
+        minSdk = 24 // Flutter 3.47 の最低要件（flutter.minSdkVersion）と同じ
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
