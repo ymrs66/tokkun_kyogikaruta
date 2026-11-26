@@ -2,6 +2,7 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'interstitial_lifecycle.dart';
 
 /// 広告ユニットIDの切り替え
 ///
@@ -61,30 +62,51 @@ class AdService {
     return ad;
   }
 
-  // ── Interstitial（先読み→1回表示） ──
-  static InterstitialAd? _cached;
+  // ── Interstitial（先読み→1回表示→閉じたら解放→次を先読み） ──
+  static final InterstitialLifecycle<InterstitialAd> _interstitial =
+      InterstitialLifecycle<InterstitialAd>(
+    loadAd: _loadInterstitial,
+    disposeAd: (ad) => ad.dispose(),
+  );
 
-  static Future<void> prefetchInterstitial() async {
+  static void _loadInterstitial(
+    void Function(InterstitialAd ad) onLoaded,
+    void Function() onFailed,
+  ) {
     final unitId = interstitialId;
-    if (!_androidMobile || _cached != null || unitId == null) return;
-    await InterstitialAd.load(
+    if (!_androidMobile || unitId == null) {
+      onFailed();
+      return;
+    }
+    InterstitialAd.load(
       adUnitId: unitId,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
-        onAdLoaded: (ad) => _cached = ad,
-        onAdFailedToLoad: (_) {},
+        onAdLoaded: onLoaded,
+        onAdFailedToLoad: (_) => onFailed(),
       ),
-    );
+    ).catchError((Object _) => onFailed());
   }
 
+  /// 次の表示のために先読みする（読み込み中・読み込み済みなら何もしない）。
+  static Future<void> prefetchInterstitial() async {
+    _interstitial.prefetch();
+  }
+
+  /// 読み込み済みの広告があれば1回表示する。広告がない・表示中なら何もしない。
+  /// 広告を閉じた／表示に失敗したときに解放し、次を先読みする。
+  /// 呼び出し側（結果画面）の進行は、広告の有無や結果を待たずに続けてよい。
   static Future<void> showInterstitialOnce() async {
-    final ad = _cached;
-    _cached = null;
+    final ad = _interstitial.takeForShow();
     if (ad == null) return;
-    await ad.show();
-    ad.dispose();
-    // 次回のために再度先読み（fire-and-forget）
-    // unawaited(prefetchInterstitial()); を使わずに呼び出すだけでOK
-    prefetchInterstitial();
+    ad.fullScreenContentCallback = FullScreenContentCallback<InterstitialAd>(
+      onAdDismissedFullScreenContent: (_) => _interstitial.finishShow(ad),
+      onAdFailedToShowFullScreenContent: (_, __) => _interstitial.finishShow(ad),
+    );
+    try {
+      await ad.show();
+    } catch (_) {
+      _interstitial.finishShow(ad);
+    }
   }
 }
