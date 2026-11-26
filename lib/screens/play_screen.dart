@@ -216,7 +216,21 @@ class PlayScreen extends HookConsumerWidget {
         child: Image.asset(c.imagePath, width: cardW),
       ),
     );
-    return BackgroundScaffold(
+    // Android の「戻る」（target 36 では予測型「戻る」）で練習中にアプリが閉じないよう、
+    // 「スタートに戻る」ボタンと同じ確認ダイアログを出す。
+    // - PopScope(canPop: false)：「戻る」を Flutter 側で処理することを Android に伝える
+    // - BackButtonListener：go_router 13.x はルートが1つだけのとき PopScope の
+    //   コールバックを呼ばないため、Router より先に「戻る」を受け取って処理する
+    return PopScope(
+      canPop: false,
+      child: BackButtonListener(
+        onBackButtonPressed: () async {
+          // ダイアログ表示中は、通常どおりダイアログを閉じる
+          if (!(ModalRoute.of(context)?.isCurrent ?? true)) return false;
+          _confirmBack(context, ref);
+          return true;
+        },
+        child: BackgroundScaffold(
         appBar: AppBar(
             title: const Text('百人一首 - 札合わせ'),
             actions: [
@@ -330,6 +344,8 @@ class PlayScreen extends HookConsumerWidget {
             ),
           );
         },
+      ),
+        ),
       ),
     );
   }
