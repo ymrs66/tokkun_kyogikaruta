@@ -63,3 +63,11 @@ ios/Runner/GoogleService-Info.plist
 
 # AdMob 本番設定（release ビルド時に --dart-define-from-file で渡す。公開リポジトリに載せない）
 /admob_release.json
+
+# ビルド成果物・作業用ファイル（Git で管理しない）
+/android/build/
+/tmp_aab/
+*.aab
+*.apk
+/app-release.zip
+/all_code.txt
