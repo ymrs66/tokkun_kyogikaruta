@@ -44,8 +44,8 @@ class HowToScreen extends StatelessWidget {
           SectionCard(
             title: '＜ランク判定基準＞',
             children: [
-              _RankRow(rank: 'S', rule: '正解率 100% 以上 かつ 平均取得 0.5 秒以内'),
-              _RankRow(rank: 'A', rule: '正解率 95% 以上 かつ 平均取得 1 秒以内'),
+              _RankRow(rank: 'S', rule: '正解率 100% 以上 かつ 平均取得 1 秒以内'),
+              _RankRow(rank: 'A', rule: '正解率 95% 以上 かつ 平均取得 1.5 秒以内'),
               _RankRow(rank: 'B', rule: '正解率 90% 以上 かつ 平均取得 2 秒以内'),
               _RankRow(rank: 'C', rule: '正解率 80% 以上 かつ 平均取得 3 秒以内'),
               _RankRow(rank: 'D', rule: '上記以外'),

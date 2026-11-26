@@ -4,7 +4,19 @@ import 'package:flutter/material.dart';
 class BackgroundScaffold extends StatelessWidget {
   final Widget child;
   final PreferredSizeWidget? appBar;
-  const BackgroundScaffold({super.key, required this.child, this.appBar});
+  final String backgroundAsset;
+  final ImageRepeat backgroundRepeat;
+  final BoxFit backgroundFit;
+  final AlignmentGeometry backgroundAlignment;
+  const BackgroundScaffold({
+    super.key,
+    required this.child,
+    this.appBar,
+    this.backgroundAsset = 'assets/images/background.png',
+    this.backgroundRepeat = ImageRepeat.repeat, // タイル敷きで必ずフィット
+    this.backgroundFit = BoxFit.none,
+    this.backgroundAlignment = Alignment.center,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -13,11 +25,12 @@ class BackgroundScaffold extends StatelessWidget {
       extendBodyBehindAppBar: appBar == null,
       appBar: appBar,
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/background.png'),
-            repeat: ImageRepeat.repeat, // タイル敷きで必ずフィット
-            fit: BoxFit.none,
+            image: AssetImage(backgroundAsset),
+            repeat: backgroundRepeat,
+            fit: backgroundFit,
+            alignment: backgroundAlignment,
           ),
         ),
         // SafeArea で上部文字切れを防止

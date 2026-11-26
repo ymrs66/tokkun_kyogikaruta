@@ -48,7 +48,7 @@
 
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="${admobAppId}" />
     </application>
 
     <!-- queries は manifest 直下（application の外）に置く -->

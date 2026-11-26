@@ -64,20 +64,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
                         Flexible(child: Image.asset(path, fit: BoxFit.contain)),
                         const SizedBox(height: 12),
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            OutlinedButton.icon(
-                              icon: const Icon(Icons.download),
-                              label: const Text('保存'),
-                              onPressed: () async {
-                                final ok = await MediaService.saveAssetToGallery(path, name: RewardCatalog.labelOf(index));
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(ok ? '保存しました' : '保存に失敗しました')),
-                                  );
-                                }
-                              },
-                            ),
+                            // 保存ボタンは 1.0.11 で削除（共有のみ）
                             ElevatedButton.icon(
                               icon: const Icon(Icons.ios_share),
                               label: const Text('共有'),
