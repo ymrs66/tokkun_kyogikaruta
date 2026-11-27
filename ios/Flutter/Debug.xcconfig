@@ -1,6 +1,6 @@
 #include "Generated.xcconfig"
 
-// AdMob（iOS）：Debug ビルドだけ Google 公式のテスト用 App ID を使う
+// AdMob（iOS）：Debug ビルドは Google 公式のテスト用 App ID を使う
 // 出典 https://developers.google.com/admob/ios/quick-start （Sample AdMob app ID）
-// 本番の App ID はここに書かない（Release.xcconfig の説明を参照）
+// 本番の App ID はここに書かない（README.md「AdMob 本番設定」）
 GAD_APPLICATION_IDENTIFIER = ca-app-pub-3940256099942544~1458002511

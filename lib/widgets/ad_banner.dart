@@ -1,6 +1,4 @@
 // lib/widgets/ad_banner.dart
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../services/ad_service.dart';
@@ -18,7 +16,7 @@ class _AdBannerState extends State<AdBanner> {
   @override
   void initState() {
     super.initState();
-    if (Platform.isAndroid && !kIsWeb && !const bool.fromEnvironment('FLUTTER_TEST')) {
+    if (AdService.isSupportedPlatform) {
       _ad = AdService.createBanner();
     }
   }

@@ -33,5 +33,3 @@ Runner/GeneratedPluginRegistrant.*
 !default.pbxuser
 !default.perspectivev3
 
-# AdMob 本番設定（iOS）：Git 管理外
-Flutter/AdMobRelease.xcconfig
