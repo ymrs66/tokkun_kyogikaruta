@@ -180,12 +180,14 @@ class PlayScreen extends HookConsumerWidget {
       );
     }
 
-    Widget cardRow(List<CardData> cards, {required bool enemy, required double w}) => Row(
+    Widget cardRow(List<CardData> cards,
+            {required bool enemy, required double w, double gap = 8}) =>
+        Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             for (final c in cards)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+                padding: EdgeInsets.symmetric(horizontal: gap / 2),
                 child: card(c, enemy: enemy, w: w),
               ),
           ],
@@ -291,17 +293,32 @@ class PlayScreen extends HookConsumerWidget {
             const passH = 56.0;
             const passGap = 16.0;
             const bottomPad = 16.0;
-            final reserved = pad * 2 + rowGap + infoH + bottomPad + (showPass ? passH + passGap : 0);
-            final byH = (box.maxHeight - reserved) / 2 * _cardAspect;
-            final byW = (min(box.maxWidth, 640.0) - pad * 2 - cardGap * 3) / 3;
-            final w = min(min(byH, byW), 200.0).clamp(40.0, 200.0);
+            double fit(double gapX, double gapY) {
+              final reserved =
+                  pad * 2 + gapY + infoH + bottomPad + (showPass ? passH + passGap : 0);
+              final byH = (box.maxHeight - reserved) / 2 * _cardAspect;
+              final byW = (min(box.maxWidth, 640.0) - pad * 2 - gapX * 3) / 3;
+              return min(min(byH, byW), 200.0).clamp(40.0, 200.0);
+            }
+
+            // スマートフォンの間隔で計算し、札が大きい（タブレット）ときは札の間隔と陣の間を広げて計算し直す
+            var colGap = cardGap, sideGap = rowGap;
+            var w = fit(colGap, sideGap);
+            final large = w >= 150; // タブレット（スマートフォンは 150 未満）
+            if (large) {
+              colGap = 14;
+              sideGap = min(48.0, w * 0.22);
+              w = fit(colGap, sideGap);
+            }
             return Padding(
               padding: const EdgeInsets.fromLTRB(pad, pad, pad, bottomPad),
               child: Column(
                 children: [
-                  cardRow(g.enemyCards, enemy: true, w: w),
-                  const SizedBox(height: rowGap),
-                  cardRow(g.selfCards, enemy: false, w: w),
+                  // タブレットでは札と情報欄を上下の中央に寄せる（札の下に大きな余白を残さない）
+                  if (large) const Spacer(),
+                  cardRow(g.enemyCards, enemy: true, w: w, gap: colGap),
+                  SizedBox(height: sideGap),
+                  cardRow(g.selfCards, enemy: false, w: w, gap: colGap),
                   SizedBox(height: infoH, child: info),
                   const Spacer(),
                   if (showPass)

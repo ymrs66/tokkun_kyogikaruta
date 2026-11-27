@@ -10,6 +10,7 @@ import '../services/gallery_service.dart';
 import '../data/reward_catalog.dart';
 import '../providers/game_state.dart'; // Rank enum 用
 import '../widgets/score_card.dart';
+import '../domain/match_plan.dart';
 import '../widgets/back_to_home.dart';
 import 'result_screen.dart' show ConditionChip, formatAvg;
 
@@ -19,90 +20,128 @@ class HighScoreScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repo = ref.watch(scoreRepositoryProvider);
-    final bestNormal = repo.loadBest(RecordCategory.normal);
-    final bestKarafuda = repo.loadBest(RecordCategory.karafuda);
-    final last = repo.loadLast();
-    // 取得済み画像は、空札なしの最高ランクの枠を表示（従来どおり。記録がなければ D）
-    final Rank rankEnum = bestNormal?.rank ?? Rank.D;
-    final indices = RewardCatalog.byRank[rankEnum]!;
     final t = Theme.of(context).textTheme;
 
-    // Phase 4 で実践練習の成績を加えるときは、ここを「反応練習／実践練習」のタブにする
+    // 反応練習・実践練習をタブで切り替える。ギャラリーは両モード共通
     return BackToHome(
-      child: BackgroundScaffold(
-      appBar: homeAppBar(context, '成績・ランク'),
-      child: FutureBuilder<Set<int>>(
-        future: GalleryService.loadOwned(),
-        builder: (ctx, snap) {
-          if (!snap.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final owned = snap.data!;
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 560),
-                child: Column(
-                  children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 4, bottom: 6),
-                        child: Text('反応練習',
-                            style: t.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                shadows: const [Shadow(color: Colors.white, blurRadius: 6)])),
-                      ),
-                    ),
-                    _RecordCard(title: '最高ランク（空札なし）', record: bestNormal, big: true),
-                    const SizedBox(height: 10),
-                    _RecordCard(title: '最高ランク（空札あり）', record: bestKarafuda),
-                    const SizedBox(height: 10),
-                    _RecordCard(title: '前回の結果', record: last, showReference: true),
-                    const SizedBox(height: 14),
-                    ScoreCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('取得済み画像（${rankEnum.name}）', style: t.titleMedium),
-                          const SizedBox(height: 8),
-                          // ランクの2枠を固定配置。未取得は hatena を表示
-                          Center(
-                            child: Wrap(
-                              alignment: WrapAlignment.center,
-                              spacing: 12,
-                              runSpacing: 12,
-                              children: [
-                                for (final i in indices)
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Image.asset(
-                                      owned.contains(i)
-                                          ? RewardCatalog.slots[i]
-                                          : RewardCatalog.hatena,
-                                      width: MediaQuery.of(context).size.width / 3,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () => context.go('/'),
-                      child: const Text('ホームに戻る'),
-                    ),
-                  ],
-                ),
-              ),
+      child: DefaultTabController(
+        length: 2,
+        child: BackgroundScaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              tooltip: 'ホームへ戻る',
+              onPressed: () => context.go('/'),
             ),
-          );
-        },
+            title: const Text('成績・ランク'),
+            bottom: const TabBar(tabs: [Tab(text: '反応練習'), Tab(text: '実践練習')]),
+          ),
+          child: FutureBuilder<Set<int>>(
+            future: GalleryService.loadOwned(),
+            builder: (ctx, snap) {
+              if (!snap.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final owned = snap.data!;
+              Widget page(List<Widget> cards, Rank galleryRank) => SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 560),
+                        child: Column(
+                          children: [
+                            ...cards,
+                            const SizedBox(height: 14),
+                            _GalleryCard(rank: galleryRank, owned: owned),
+                            const SizedBox(height: 24),
+                            ElevatedButton(
+                              onPressed: () => context.go('/'),
+                              child: const Text('ホームに戻る'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+
+              // 反応練習
+              final bestNormal = repo.loadBest(RecordCategory.normal);
+              final bestKarafuda = repo.loadBest(RecordCategory.karafuda);
+              final reaction = page([
+                _RecordCard(title: '最高ランク（空札なし）', record: bestNormal, big: true),
+                const SizedBox(height: 10),
+                _RecordCard(title: '最高ランク（空札あり）', record: bestKarafuda),
+                const SizedBox(height: 10),
+                _RecordCard(title: '前回の結果', record: repo.loadLast(), showReference: true),
+              ], bestNormal?.rank ?? Rank.D); // 従来どおり空札なしの最高ランクの枠
+
+              // 実践練習（空札の割合別の3条件）
+              final matchBests = [for (final k in matchKarafudaPercentOptions) (k, repo.loadMatchBest(k))];
+              final bestMatchRank = matchBests
+                  .map((e) => e.$2?.rank)
+                  .whereType<Rank>()
+                  .fold<Rank?>(null, (a, b) => a == null || b.index < a.index ? b : a);
+              final match = page([
+                for (final (k, r) in matchBests) ...[
+                  _RecordCard(
+                    title: '最高ランク（${k == 0 ? '空札なし' : '空札 $k%'}・全${matchTotalReads(k)}問）',
+                    record: r,
+                    big: k == 30,
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                _RecordCard(title: '前回の結果', record: repo.loadMatchLast(), showReference: true),
+                const SizedBox(height: 6),
+                Text('暗記時間は記録しますが、最高記録の分け方には使いません。',
+                    style: t.bodySmall?.copyWith(shadows: const [Shadow(color: Colors.white, blurRadius: 6)])),
+              ], bestMatchRank ?? Rank.D);
+
+              return TabBarView(children: [reaction, match]);
+            },
+          ),
+        ),
       ),
+    );
+  }
+}
+
+/// 取得済み画像（ランクの2枠。両モード共通のギャラリー）
+class _GalleryCard extends StatelessWidget {
+  const _GalleryCard({required this.rank, required this.owned});
+  final Rank rank;
+  final Set<int> owned;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final indices = RewardCatalog.byRank[rank]!;
+    final w = (MediaQuery.of(context).size.width / 3).clamp(80.0, 180.0);
+    return ScoreCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('取得済み画像（${rank.name}）', style: t.titleMedium),
+          Text('ギャラリーは反応練習・実践練習で共通です', style: t.bodySmall),
+          const SizedBox(height: 8),
+          Center(
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                for (final i in indices)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.asset(
+                      owned.contains(i) ? RewardCatalog.slots[i] : RewardCatalog.hatena,
+                      width: w,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

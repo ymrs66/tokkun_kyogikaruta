@@ -235,4 +235,88 @@ void main() {
       expect(await repo.resetScores(), isTrue);
     });
   });
+
+  group('実践練習の記録（Phase 4）', () {
+    PracticeRecord m({
+      Rank rank = Rank.B,
+      int accuracy = 92,
+      int karafuda = 30,
+      bool reference = false,
+      String? session,
+    }) =>
+        PracticeRecord(
+          mode: PracticeMode.match,
+          memorizeSec: 60,
+          memorizeUsedSec: 42,
+          rank: rank,
+          accuracy: accuracy,
+          avgMs: 2100,
+          successCount: 11,
+          deduction: 0,
+          totalQuestions: 17,
+          karafudaPercent: karafuda,
+          otetsukiPenalty: true,
+          timingVersion: 2,
+          isReference: reference,
+          sessionId: session ?? 'm${_seq++}',
+          playedAt: DateTime(2026, 11, 27),
+          counts: const {'sameSide': 2, 'selfTaken': 6},
+        );
+
+    test('空札の割合ごとに別キー、反応練習のキー（新旧）には触れない（R1）', () async {
+      store.data.addAll({'bestRank': 'A', 'bestAccuracy': 95, 'bestAvgSec': 1.9});
+      await repo.save(rec(rank: Rank.C)); // 反応練習の前回
+      for (final k in [0, 30, 50]) {
+        expect((await repo.save(m(karafuda: k))).bestUpdated, isTrue);
+      }
+      expect(store.data.keys.toSet(), containsAll([
+        'record.v2.match.best.k0', 'record.v2.match.best.k30',
+        'record.v2.match.best.k50', 'record.v2.match.last',
+      ]));
+      expect(store.data['bestRank'], 'A');
+      expect(repo.loadBest(RecordCategory.karafuda), isNull);
+      expect(repo.loadLast()!.mode, PracticeMode.reaction);
+      expect(repo.loadLast()!.rank, Rank.C);
+      expect(repo.loadMatchLast()!.mode, PracticeMode.match);
+    });
+
+    test('暗記時間（設定・実際）と内訳を保存して読み戻せる', () async {
+      await repo.save(m());
+      final r = repo.loadMatchBest(30)!;
+      expect(r.memorizeSec, 60);
+      expect(r.memorizeUsedSec, 42);
+      expect(r.counts['sameSide'], 2);
+      expect(r.mode, PracticeMode.match);
+    });
+
+    test('参考記録は最高記録を更新しないが、前回の結果には残る（R2）', () async {
+      final o = await repo.save(m(rank: Rank.S, accuracy: 100, reference: true));
+      expect(o.bestUpdated, isFalse);
+      expect(repo.loadMatchBest(30), isNull);
+      expect(repo.loadMatchLast()!.isReference, isTrue);
+    });
+
+    test('下回る結果では最高記録を変えない・同じ練習は二重に保存しない（R5）', () async {
+      await repo.save(m(rank: Rank.A, accuracy: 100, session: 'x'));
+      expect((await repo.save(m(rank: Rank.D, accuracy: 50))).bestUpdated, isFalse);
+      expect(repo.loadMatchBest(30)!.rank, Rank.A);
+      expect((await repo.save(m(rank: Rank.D, accuracy: 0, session: 'y'))).duplicate, isFalse);
+      expect((await repo.save(m(rank: Rank.D, accuracy: 0, session: 'y'))).duplicate, isTrue);
+    });
+
+    test('mode のない既存の JSON は反応練習として読める（R3）', () {
+      final json = rec(rank: Rank.B).toJson()..remove('mode');
+      store.data[ScoreRepository.keyBestNormal] = jsonEncode(json);
+      expect(repo.loadBest(RecordCategory.normal)!.mode, PracticeMode.reaction);
+    });
+
+    test('成績リセットで両モードが消え、ギャラリー・設定は残る（R4）', () async {
+      store.data.addAll({'galleryOwnedIds': ['8'], 'settings.v1.match.memorizeSec': 60});
+      await repo.save(rec());
+      await repo.save(m());
+      expect(await repo.resetScores(), isTrue);
+      expect(store.data.keys.toSet(), {'galleryOwnedIds', 'settings.v1.match.memorizeSec'});
+      expect(repo.loadMatchLast(), isNull);
+    });
+  });
 }

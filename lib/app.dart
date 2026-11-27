@@ -9,6 +9,9 @@ import 'screens/highscore_screen.dart';
 import 'screens/privacy_screen.dart';
 import 'screens/gallery_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/match_setup_screen.dart';
+import 'screens/match_play_screen.dart';
+import 'screens/match_result_screen.dart';
 
 final _router = GoRouter(
   routes: [
@@ -20,6 +23,10 @@ final _router = GoRouter(
     GoRoute(path: '/privacy', builder: (_, __) => const PrivacyScreen()),
     GoRoute(path: '/gallery', builder: (_, __) => const GalleryScreen()),
     GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+    // 実践練習（開始 → 暗記・練習 → 結果）
+    GoRoute(path: '/match', builder: (_, __) => const MatchSetupScreen()),
+    GoRoute(path: '/match/play', builder: (_, __) => const MatchPlayScreen()),
+    GoRoute(path: '/match/result', builder: (_, __) => const MatchResultScreen()),
   ],
 );
 

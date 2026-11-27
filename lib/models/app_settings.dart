@@ -12,6 +12,8 @@ class AppSettings {
     this.otetsukiPenalty = false,
     this.soundOn = true,
     this.textFlowOn = true,
+    this.matchMemorizeSec = 60,
+    this.matchKarafudaPercent = 30,
   });
 
   /// 空札あり（初期値 OFF）
@@ -29,6 +31,12 @@ class AppSettings {
   /// 上の句の文字表示
   final bool textFlowOn;
 
+  /// 実践練習：暗記時間（秒。30／60／180、初期値 60）
+  final int matchMemorizeSec;
+
+  /// 実践練習：空札の割合（0／30／50、初期値 30）
+  final int matchKarafudaPercent;
+
   /// 実際に使う空札の割合（空札なしなら 0）
   int get effectiveKarafudaPercent => karafudaEnabled ? karafudaPercent : 0;
 
@@ -38,6 +46,8 @@ class AppSettings {
     bool? otetsukiPenalty,
     bool? soundOn,
     bool? textFlowOn,
+    int? matchMemorizeSec,
+    int? matchKarafudaPercent,
   }) =>
       AppSettings(
         karafudaEnabled: karafudaEnabled ?? this.karafudaEnabled,
@@ -45,6 +55,8 @@ class AppSettings {
         otetsukiPenalty: otetsukiPenalty ?? this.otetsukiPenalty,
         soundOn: soundOn ?? this.soundOn,
         textFlowOn: textFlowOn ?? this.textFlowOn,
+        matchMemorizeSec: matchMemorizeSec ?? this.matchMemorizeSec,
+        matchKarafudaPercent: matchKarafudaPercent ?? this.matchKarafudaPercent,
       );
 
   /// 空札の割合として正しい値か（0 は「空札なし」なので設定値としては使わない）
@@ -57,9 +69,11 @@ class AppSettings {
       other.karafudaPercent == karafudaPercent &&
       other.otetsukiPenalty == otetsukiPenalty &&
       other.soundOn == soundOn &&
-      other.textFlowOn == textFlowOn;
+      other.textFlowOn == textFlowOn &&
+      other.matchMemorizeSec == matchMemorizeSec &&
+      other.matchKarafudaPercent == matchKarafudaPercent;
 
   @override
-  int get hashCode => Object.hash(
-      karafudaEnabled, karafudaPercent, otetsukiPenalty, soundOn, textFlowOn);
+  int get hashCode => Object.hash(karafudaEnabled, karafudaPercent, otetsukiPenalty,
+      soundOn, textFlowOn, matchMemorizeSec, matchKarafudaPercent);
 }

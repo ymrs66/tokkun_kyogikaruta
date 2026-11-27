@@ -14,7 +14,10 @@ class HowToScreen extends StatelessWidget {
       child: BackgroundScaffold(
         appBar: homeAppBar(context, '遊び方'),
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          // 大きな画面で横に広がりすぎないよう、本文の幅を 640 までにする
+          padding: EdgeInsets.symmetric(
+              vertical: 16,
+              horizontal: ((MediaQuery.sizeOf(context).width - 640) / 2).clamp(16.0, double.infinity)),
           children: [
             // 1) 反応練習とは
             const SectionCard(
@@ -69,6 +72,33 @@ class HowToScreen extends StatelessWidget {
                 const _Footnote(
                     text: '※正答率＝（正解＋見送り成功−ペナルティ）÷10問。'
                         '平均取得時間は、正解した札の反応時間（ミリ秒単位）の平均です。'),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // 4b) 実践練習
+            SectionCard(
+              title: '＜実践練習＞',
+              children: [
+                const _BulletRow(icon: Icons.grid_view, text: '札の暗記・位置の把握・競技に近い札取りを練習します。場の札は自陣6枚・敵陣6枚（上が敵陣）の12枚です'),
+                const _BulletRow(icon: Icons.visibility_outlined, text: '最初に暗記の時間があります（30秒／1分／3分）。「暗記終了」でいつでも始められます'),
+                const _BulletRow(icon: Icons.push_pin_outlined, text: '札の位置は最後まで変わりません。取った札・取り逃した札の位置は空白になります'),
+                const _BulletRow(icon: Icons.check_circle_outline, text: '読まれた札を押すと「正解」。同じ陣の別の札は「同陣ミス」（減点なし・そのまま取れます）'),
+                const _BulletRow(icon: Icons.warning_amber_rounded, text: '反対の陣の札や、空札のときに札を押すと「お手つき」。1回につき1枚分を差し引きます'),
+                const _BulletRow(icon: Icons.pan_tool_outlined, text: '空札は「見送り」を押すか、何もしないで待てば「見送り成功」です'),
+                const _BulletRow(icon: Icons.timer_off_outlined, text: '場にある札で時間切れ（10秒）・見送りは「取り逃し」です'),
+                for (final r in RankPolicy.matchRules)
+                  _RankRow(
+                    rank: r.rank.name,
+                    rule: '正答率 ${r.minAccuracy}% 以上 かつ '
+                        '平均取得 ${formatSecondsLimit(r.maxAvgMs)} 秒以内',
+                  ),
+                const _RankRow(rank: 'D', rule: '上記以外'),
+                const _Footnote(
+                    text: '※最終正答率＝（取った札−お手つき）÷12枚（0%未満にはしません）。'
+                        '平均取得時間は、正解した札の時間の平均です。最高記録は空札の割合（なし／30%／50%）ごとに残ります。\n'
+                        '※実践練習は、競技かるたの正式ルールではなく、スマートフォンで手軽に練習するための簡易ルールです。'
+                        '実際の競技では、同じ陣の別の札に触れてもお手つきにならず、空札では何もしないのが正しい動きです。'),
               ],
             ),
             const SizedBox(height: 12),

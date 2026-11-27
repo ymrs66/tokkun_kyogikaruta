@@ -6,13 +6,14 @@ import '../providers/game_provider.dart';
 import '../models/game_config.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/background_scaffold.dart';
+import 'match_setup_screen.dart' show memorizeLabel;
 // 広告関係
 import 'package:tokkun_kyogikaruta/widgets/ad_banner.dart';
 import 'package:tokkun_kyogikaruta/services/ad_service.dart';
 
 /// ホーム画面（タイトル）
 ///
-/// - 練習のボタンの下に短い説明文を表示する（Phase 4 で「実践練習」を同じ形で追加する）
+/// - 練習のボタン（反応練習・実践練習）の下に短い説明文と条件を表示する
 /// - タイトルはレイアウトの中に置き、小型端末・横画面でも画面外に出ないようにする
 /// - バナー広告は画面の下に固定し、メニューが入りきらないときはメニューだけをスクロールする
 class TitleScreen extends ConsumerWidget {
@@ -20,6 +21,8 @@ class TitleScreen extends ConsumerWidget {
 
   static const reactionLabel = '反応練習';
   static const reactionDescription = '札の認識力・判断力・反応速度を鍛える';
+  static const matchLabel = '実践練習';
+  static const matchDescription = '札の暗記・位置の把握・競技に近い札取りを練習する';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -47,7 +50,14 @@ class TitleScreen extends ConsumerWidget {
           condition: condition,
           onTap: startReaction,
         ),
-        // Phase 4：ここに「実践練習」（札の暗記・位置の把握・競技に近い札取りを練習する）を追加する
+        const SizedBox(height: 8),
+        _PracticeButton(
+          label: matchLabel,
+          description: matchDescription,
+          condition: '暗記 ${memorizeLabel(settings.matchMemorizeSec)}・'
+              '${settings.matchKarafudaPercent == 0 ? '空札なし' : '空札 ${settings.matchKarafudaPercent}%'}',
+          onTap: () => context.go('/match'),
+        ),
         const SizedBox(height: 6),
         _menuBtn(label: '遊び方説明', onTap: () => context.go('/howto')),
         _menuBtn(label: '成績・ランク', onTap: () => context.go('/score')),
@@ -161,7 +171,7 @@ class _PracticeButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 260,
+      width: 290,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

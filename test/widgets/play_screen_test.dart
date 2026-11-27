@@ -1,3 +1,5 @@
+import 'dart:math';
+
 // test/widgets/play_screen_test.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -215,5 +217,20 @@ void main() {
       expect(find.textContaining('読み上げ音声を再生できない'), findsOneWidget);
       await finish(tester, g);
     });
+  });
+
+  testWidgets('タブレット：札と情報欄を上下の中央に寄せる。スマートフォンは従来どおり上詰め', (tester) async {
+    Future<double> topOfCards(Size size) async {
+      final g = await pumpPlay(tester, size: size, cfg: const GameConfig(karafudaPercent: 30));
+      final cardImage = RegExp(r'^assets/images/\d{3}\.png$');
+      final cards = find.byWidgetPredicate((w) =>
+          w is Image && (w.image is AssetImage) && cardImage.hasMatch((w.image as AssetImage).assetName));
+      final top = cards.evaluate().map((e) => tester.getRect(find.byWidget(e.widget)).top).reduce(min);
+      await finish(tester, g);
+      return top;
+    }
+
+    expect(await topOfCards(const Size(393, 852)), lessThan(80)); // AppBar のすぐ下
+    expect(await topOfCards(const Size(800, 1280)), greaterThan(150)); // 中央寄せ
   });
 }
