@@ -63,6 +63,33 @@ debug / profile ビルドでは、AdMob は常に **Google 配布のテスト ID
   - このフェーズは毎回実行される（増分ビルド・Xcode の Product → Archive でも省略されない）
   - スクリプトのテスト：`sh ios/scripts/test_admob_config.sh`
 
+`ADMOB_CONFIG_CONFIRMED*` の `"true"` は「広告 ID を管理画面と照合済み」という意味で、プライバシー対応や配布の承認を意味しない。
+
+## 広告の同意（UMP）
+
+`lib/services/ad_consent.dart`。起動ごとに同意情報を更新し、必要なときだけ同意フォームを表示する。`canRequestAds()` が true のときだけ Mobile Ads SDK を初期化して広告を読み込む（Android・iOS 共通）。広告が出なくても練習・結果・ギャラリーの報酬は動く。
+
+- 同意フォームは、AdMob 管理画面の「プライバシーとメッセージ」で該当地域（欧州・米国の州など）のメッセージを公開したときだけ表示される
+- プライバシー オプションが必要な利用者には、設定画面に「広告のプライバシー設定」を表示する
+- 広告の内容は一般向け（`maxAdContentRating: G`）までに制限する
+
+### 同意フォームの確認（debug / profile のみ）
+
+```bash
+fvm flutter run --dart-define=UMP_DEBUG_GEOGRAPHY=eea                       # 欧州として扱う（シミュレーター）
+fvm flutter run --dart-define=UMP_DEBUG_GEOGRAPHY=eea --dart-define=UMP_TEST_DEVICE_IDS=<ハッシュID>   # 実機
+```
+
+`UMP_DEBUG_GEOGRAPHY` は `eea` / `us_state` / `other`。実機のハッシュ ID は起動時のログに表示される。**release ビルドでは指定しても無効**（正式版に混入しない）。debug ではテスト用 App ID のため、Google のテスト用のフォームが表示される。
+
+### TestFlight でのテスト広告
+
+TestFlight のビルドは release のため本番の広告 ID を使う。確認する端末ではテスト広告を表示させ、広告はタップしない。方法は次のどちらか。
+
+- AdMob 管理画面の「設定 → テストデバイス」に登録する（iOS は広告 ID（IDFA）で登録するため、トラッキングを許可していない端末では使えない場合がある）
+- 端末のハッシュ ID（SDK のログ「To get test ads on this device…」）を指定してビルドする：
+  `--dart-define=ADMOB_TEST_DEVICE_IDS=<ハッシュID>`（カンマ区切り、`admob_release.json` とは別に指定）。指定した端末だけがテスト広告になる
+
 ## 署名
 
 `android/key.properties` と `android/app/upload-keystore.jks`（いずれも Git 管理外）を使う。署名鍵は再生成しないこと。

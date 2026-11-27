@@ -174,4 +174,38 @@ void main() {
     expect(l.takeForShow(), same(a));
     expect(disposed, isEmpty);
   });
+
+  group('破棄（同意状態の変更）', () {
+    test('読み込み済みの広告を解放し、次の表示では使わない', () {
+      life.prefetch();
+      final a = loader.succeed();
+      life.clear();
+      expect(loader.disposed, [a]);
+      expect(life.hasAd, isFalse);
+      expect(life.isLoading, isFalse);
+    });
+
+    test('読み込み中に破棄したら、後から届いた広告は解放して使わない', () {
+      life.prefetch();
+      life.clear();
+      final late = loader.succeed();
+      expect(loader.disposed, [late]);
+      expect(life.hasAd, isFalse);
+      // 破棄後の先読みは新しく読み込める
+      life.prefetch();
+      expect(loader.requests, 2);
+      final b = loader.succeed();
+      expect(life.takeForShow(), same(b));
+    });
+
+    test('表示中の広告は破棄しない（閉じたときに1回だけ解放）', () {
+      life.prefetch();
+      final a = loader.succeed();
+      expect(life.takeForShow(), same(a));
+      life.clear();
+      expect(loader.disposed, isEmpty);
+      life.finishShow(a);
+      expect(loader.disposed, [a]);
+    });
+  });
 }
