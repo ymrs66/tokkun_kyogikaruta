@@ -11,6 +11,7 @@ import '../providers/game_state.dart';
 import '../services/gallery_service.dart';
 import '../data/reward_catalog.dart';
 import '../widgets/score_card.dart';
+import '../widgets/back_to_home.dart';
 
 class ResultScreen extends ConsumerStatefulWidget {
   const ResultScreen({super.key});
@@ -85,7 +86,12 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     }
   }
 
+  bool _leaving = false;
+
+  /// ホームへ戻る（ボタン・戻る操作）。二重に呼ばれても1回だけ処理する
   void _backToTitle() {
+    if (_leaving) return;
+    _leaving = true;
     ref.read(gameProvider).resetGame();
     context.go('/');
   }
@@ -115,7 +121,10 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       if (kara) ('平均見送り時間', formatAvg(s.avgPassMs)),
     ];
 
-    return BackgroundScaffold(
+    // 戻る操作：獲得ダイアログが出ていればダイアログを閉じるだけ、なければゲームをリセットしてホームへ
+    return BackToHome(
+      onBack: _backToTitle,
+      child: BackgroundScaffold(
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -142,7 +151,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: _backToTitle,
-                        child: const Text('スタートへ戻る'),
+                        child: const Text('ホームに戻る'),
                       ),
                       TextButton(
                         onPressed: () => context.go('/gallery'),
@@ -154,6 +163,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
               ),
             ),
           ),
+      ),
     );
   }
 }
