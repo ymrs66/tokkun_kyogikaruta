@@ -22,6 +22,9 @@ class InterstitialLifecycle<A extends Object> {
   A? _showing;
   bool _loading = false;
 
+  /// [clear] のたびに増える。古い読み込みの結果を捨てるために使う
+  int _epoch = 0;
+
   bool get hasAd => _cached != null;
   bool get isLoading => _loading;
   bool get isShowing => _showing != null;
@@ -31,10 +34,15 @@ class InterstitialLifecycle<A extends Object> {
     if (_cached != null || _loading) return;
     _loading = true;
     var settled = false;
+    final epoch = _epoch;
     loadAd(
       (ad) {
         if (settled) return;
         settled = true;
+        if (epoch != _epoch) {
+          disposeAd(ad); // 読み込み中に破棄された（同意状態の変更など）：使わない
+          return;
+        }
         _loading = false;
         if (_cached != null) {
           disposeAd(ad); // 念のため：すでに持っている場合は捨てる
@@ -45,6 +53,7 @@ class InterstitialLifecycle<A extends Object> {
       () {
         if (settled) return;
         settled = true;
+        if (epoch != _epoch) return;
         _loading = false;
       },
     );
@@ -62,6 +71,16 @@ class InterstitialLifecycle<A extends Object> {
     _cached = null;
     _showing = ad;
     return ad;
+  }
+
+  /// 読み込み済みの広告を解放し、読み込み中の結果も捨てる（同意状態の変更・広告の停止時）。
+  /// 表示中の広告はそのまま（閉じたときに [finishShow] で解放される）。
+  void clear() {
+    _epoch++;
+    _loading = false;
+    final ad = _cached;
+    _cached = null;
+    if (ad != null) disposeAd(ad);
   }
 
   /// 表示が終わった（閉じた／表示に失敗した）ときに呼ぶ。同じ広告で2回呼ばれても1回だけ処理する。

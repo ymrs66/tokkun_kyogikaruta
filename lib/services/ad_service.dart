@@ -2,6 +2,7 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'ad_consent.dart';
 import 'interstitial_lifecycle.dart';
 
 /// 広告ユニットIDの切り替え（Android・iOS 共通の仕組み、ID は OS 別）
@@ -13,6 +14,10 @@ import 'interstitial_lifecycle.dart';
 /// release で本番IDが渡されていない場合、Android は Gradle
 /// （android/app/build.gradle.kts）、iOS は Xcode のビルドスクリプト
 /// （ios/scripts/admob_config.sh）でビルドを止める。万一すり抜けた場合も広告を読み込まない。
+///
+/// 広告の読み込みは、UMP の同意確認で広告のリクエストが許可され、SDK を初期化した後だけ
+/// （[consent]・lib/services/ad_consent.dart）。許可されていなければ広告は出さず、
+/// 練習・結果・ギャラリーの報酬はそのまま動く。
 class AdService {
   static bool get _android => !kIsWeb && Platform.isAndroid;
   static bool get _ios => !kIsWeb && Platform.isIOS;
@@ -20,6 +25,70 @@ class AdService {
   /// 広告を表示する OS（Android・iOS）。テスト実行中は読み込まない。
   static bool get isSupportedPlatform =>
       (_android || _ios) && !const bool.fromEnvironment('FLUTTER_TEST');
+
+  /// 広告の同意と SDK の初期化の状態（テストではフェイクの platform に差し替える）
+  static AdConsentController consent = AdConsentController(
+    platform: UmpConsentPlatform(debugSettings: umpDebugSettingsFromEnvironment()),
+    initializeAds: _initializeSdk,
+  );
+
+  /// 広告のリクエスト設定。広告の内容は一般向け（G）までに制限する。
+  /// 年齢に応じた扱い（ageRestrictedTreatment）は未確定のため指定しない（報告書 105）。
+  static RequestConfiguration get requestConfiguration => requestConfigurationFor(
+        testDeviceIds: const String.fromEnvironment('ADMOB_TEST_DEVICE_IDS'),
+      );
+
+  /// [testDeviceIds]：テスト広告を表示する端末（SDK のログに出るハッシュ ID、カンマ区切り）。
+  /// TestFlight で本番の広告 ID のビルドを確認するときに、自分の端末だけテスト広告にする
+  /// （`--dart-define=ADMOB_TEST_DEVICE_IDS=...`）。指定しなければ null。
+  @visibleForTesting
+  static RequestConfiguration requestConfigurationFor({required String testDeviceIds}) {
+    final ids = testDeviceIds
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    return RequestConfiguration(
+      maxAdContentRating: MaxAdContentRating.g,
+      testDeviceIds: ids.isEmpty ? null : ids,
+    );
+  }
+
+  static Future<void> _initializeSdk() async {
+    // リクエスト設定は初期化の前に反映する（公式の targeting の手順）
+    await MobileAds.instance.updateRequestConfiguration(requestConfiguration);
+    await MobileAds.instance.initialize();
+  }
+
+  static bool _consentListening = false;
+
+  /// 起動時に1回呼ぶ（main.dart）。同意を確認し、許可されたら SDK を初期化して先読みする。
+  static Future<void> start() async {
+    if (!isSupportedPlatform) return;
+    if (!_consentListening) {
+      _consentListening = true;
+      var last = consent.state.value;
+      consent.state.addListener(() {
+        final now = consent.state.value;
+        onConsentChanged(last, now);
+        last = now;
+      });
+    }
+    await consent.gather();
+  }
+
+  /// 同意状態の変化に合わせて、インタースティシャルを破棄・先読みし直す。
+  @visibleForTesting
+  static void onConsentChanged(AdConsentState before, AdConsentState after) {
+    if (!after.canRequestAds) {
+      _interstitial.clear();
+      return;
+    }
+    if (after.generation != before.generation) {
+      _interstitial.clear(); // 古い同意状態で読み込んだ広告は使わない
+    }
+    _interstitial.prefetch();
+  }
 
   // Google配布のテストユニットID
   // Android: https://developers.google.com/admob/android/test-ads
@@ -79,7 +148,7 @@ class AdService {
   // ── Banner ──
   static BannerAd? createBanner() {
     final unitId = bannerId;
-    if (!isSupportedPlatform || unitId == null) return null;
+    if (!isSupportedPlatform || unitId == null || !consent.canRequestAds) return null;
     final ad = BannerAd(
       size: AdSize.banner,
       adUnitId: unitId,
@@ -103,7 +172,7 @@ class AdService {
     void Function() onFailed,
   ) {
     final unitId = interstitialId;
-    if (!isSupportedPlatform || unitId == null) {
+    if (!isSupportedPlatform || unitId == null || !consent.canRequestAds) {
       onFailed();
       return;
     }
