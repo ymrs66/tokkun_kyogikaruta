@@ -1,1 +1,6 @@
 #include "Generated.xcconfig"
+
+// AdMob（iOS）：Release / Profile ビルドにはテスト用 App ID を入れない。
+// 本番の App ID は Git 管理外の AdMobRelease.xcconfig（未作成・方式は今後検討）から読む予定。
+// 例：GAD_APPLICATION_IDENTIFIER = ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY
+#include? "AdMobRelease.xcconfig"
