@@ -63,9 +63,16 @@ class TitleScreen extends ConsumerWidget {
         _menuBtn(label: '成績・ランク', onTap: () => context.go('/score')),
         _menuBtn(label: 'ギャラリー', onTap: () => context.go('/gallery')),
         _menuBtn(label: '設定', icon: Icons.settings, onTap: () => context.go('/settings')),
-        // 目立たせない小ボタン
+        // 目立たせない小ボタン（背景画像の上でも読めるよう、説明文と同じ半透明の帯に載せる）
         TextButton(
           onPressed: () => context.go('/privacy'),
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.white,
+            backgroundColor: Colors.black.withValues(alpha: 0.45),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            minimumSize: const Size(0, 36),
+            textStyle: const TextStyle(fontSize: 13),
+          ),
           child: const Text('プライバシーポリシー'),
         ),
       ],
@@ -79,11 +86,17 @@ class TitleScreen extends ConsumerWidget {
       ),
     );
 
+    // 背景は縦長の絵（736×1632）。横画面では中央の帯しか見えず、二人の顔が切れるため
+    // 少し上を基準にして、顔・手・札が入るようにする（縦画面は従来どおり中央）
+    final size = MediaQuery.sizeOf(context);
+    final landscapeScreen = size.width > size.height;
+
     return BackgroundScaffold(
       backgroundAsset: 'assets/images/titlebackground.png',
       backgroundRepeat: ImageRepeat.noRepeat,
       backgroundFit: BoxFit.cover, // 画面いっぱいに敷く（必要なら一部トリミング）
-      backgroundAlignment: Alignment.center,
+      backgroundAlignment:
+          landscapeScreen ? const Alignment(0, -0.35) : Alignment.center,
       child: Column(
         children: [
           Expanded(

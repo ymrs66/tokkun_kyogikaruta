@@ -1,1 +1,7 @@
 #include "Generated.xcconfig"
+
+// AdMob（iOS）：Release / Profile の App ID はここには書かない。
+// ビルドフェーズ「AdMob Config」（ios/scripts/admob_config.sh）が設定する：
+//   Profile：Google 公式のテスト用 App ID
+//   Release：Git 管理外の admob_release.json（--dart-define-from-file）の ADMOB_APP_ID_IOS を検証して設定。
+//            不足・不正・テスト ID の混入・未確認ならビルドを中止する。

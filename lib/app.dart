@@ -40,7 +40,7 @@ class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: '競技かるた練習',
+      title: '競技かるた特訓',
       routerConfig: _router,
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
