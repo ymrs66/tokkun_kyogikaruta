@@ -15,18 +15,18 @@ import 'screens/match_result_screen.dart';
 
 final _router = GoRouter(
   routes: [
-    GoRoute(path: '/',        builder: (_, __) => const TitleScreen()),
-    GoRoute(path: '/play',    builder: (_, __) => const PlayScreen()),
-    GoRoute(path: '/result',  builder: (_, __) => const ResultScreen()),
-    GoRoute(path: '/howto',   builder: (_, __) => const HowToScreen()),
-    GoRoute(path: '/score',   builder: (_, __) => const HighScoreScreen()),
-    GoRoute(path: '/privacy', builder: (_, __) => const PrivacyScreen()),
-    GoRoute(path: '/gallery', builder: (_, __) => const GalleryScreen()),
-    GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+    GoRoute(path: '/',        builder: (_, _) => const TitleScreen()),
+    GoRoute(path: '/play',    builder: (_, _) => const PlayScreen()),
+    GoRoute(path: '/result',  builder: (_, _) => const ResultScreen()),
+    GoRoute(path: '/howto',   builder: (_, _) => const HowToScreen()),
+    GoRoute(path: '/score',   builder: (_, _) => const HighScoreScreen()),
+    GoRoute(path: '/privacy', builder: (_, _) => const PrivacyScreen()),
+    GoRoute(path: '/gallery', builder: (_, _) => const GalleryScreen()),
+    GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
     // 実践練習（開始 → 暗記・練習 → 結果）
-    GoRoute(path: '/match', builder: (_, __) => const MatchSetupScreen()),
-    GoRoute(path: '/match/play', builder: (_, __) => const MatchPlayScreen()),
-    GoRoute(path: '/match/result', builder: (_, __) => const MatchResultScreen()),
+    GoRoute(path: '/match', builder: (_, _) => const MatchSetupScreen()),
+    GoRoute(path: '/match/play', builder: (_, _) => const MatchPlayScreen()),
+    GoRoute(path: '/match/result', builder: (_, _) => const MatchResultScreen()),
   ],
 );
 
@@ -44,10 +44,11 @@ class App extends StatelessWidget {
       routerConfig: _router,
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
+        // 端末の文字サイズ設定は 1.0〜1.3 倍の範囲で反映する（大きすぎるとレイアウトが崩れるため）
         final mq = MediaQuery.of(context);
-        final clamped = mq.textScaleFactor.clamp(1.0, 1.3);
         return MediaQuery(
-          data: mq.copyWith(textScaleFactor: clamped),
+          data: mq.copyWith(
+              textScaler: mq.textScaler.clamp(minScaleFactor: 1.0, maxScaleFactor: 1.3)),
           child: child ?? const SizedBox(),
         );
       },

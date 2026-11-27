@@ -101,7 +101,7 @@ class AdService {
     if (ad == null) return;
     ad.fullScreenContentCallback = FullScreenContentCallback<InterstitialAd>(
       onAdDismissedFullScreenContent: (_) => _interstitial.finishShow(ad),
-      onAdFailedToShowFullScreenContent: (_, __) => _interstitial.finishShow(ad),
+      onAdFailedToShowFullScreenContent: (_, _) => _interstitial.finishShow(ad),
     );
     try {
       await ad.show();

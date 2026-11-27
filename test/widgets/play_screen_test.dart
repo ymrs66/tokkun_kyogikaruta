@@ -30,8 +30,8 @@ Future<GameState> pumpPlay(WidgetTester tester,
   final game = GameState()..startGame(cfg);
   addTearDown(game.abort); // テストが途中で失敗してもタイマーを残さない
   final router = GoRouter(routes: [
-    GoRoute(path: '/', builder: (_, __) => const PlayScreen()),
-    GoRoute(path: '/result', builder: (_, __) => const Scaffold()),
+    GoRoute(path: '/', builder: (_, _) => const PlayScreen()),
+    GoRoute(path: '/result', builder: (_, _) => const Scaffold()),
   ]);
   await tester.pumpWidget(ProviderScope(
     overrides: [
