@@ -67,16 +67,20 @@ class _GalleryScreenState extends State<GalleryScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             // 保存ボタンは 1.0.11 で削除（共有のみ）
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.ios_share),
-                              label: const Text('共有'),
-                              onPressed: () async {
-                                await MediaService.shareAsset(
-                                  path,
-                                  fileName: '${RewardCatalog.labelOf(index)}.png',
-                                  text: '百人一首 練習アプリのギャラリー画像',
-                                );
-                              },
+                            // Builder：押したボタン自身の位置を共有の起点にする（iPad のポップオーバー）
+                            Builder(
+                              builder: (buttonContext) => ElevatedButton.icon(
+                                icon: const Icon(Icons.ios_share),
+                                label: const Text('共有'),
+                                onPressed: () async {
+                                  await MediaService.shareAsset(
+                                    path,
+                                    fileName: '${RewardCatalog.labelOf(index)}.png',
+                                    text: '競技かるた特訓のギャラリー画像',
+                                    sharePositionOrigin: MediaService.originOf(buttonContext),
+                                  );
+                                },
+                              ),
                             ),
                           ],
                         ),
@@ -120,15 +124,27 @@ class _GalleryScreenState extends State<GalleryScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Text(title, style: Theme.of(context).textTheme.titleMedium),
           ),
-          GridView.count(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-            childAspectRatio: 1,
+          // 1 行 crossAxisCount 枚の大きさで並べ、枚数が少ない行も中央に寄せる
+          // （各ランク 2 枚を 3 列の格子に並べると右の列が空いて左に偏るため）
+          Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            children: indices.map(_slot).toList(),
+            child: LayoutBuilder(builder: (context, box) {
+              const gap = 8.0;
+              final tile = (box.maxWidth - gap * (crossAxisCount - 1)) / crossAxisCount;
+              // 親の Column は左揃えのため、幅いっぱいに広げてから中央に寄せる
+              return SizedBox(
+                width: box.maxWidth,
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: [
+                    for (final i in indices)
+                      SizedBox(width: tile, height: tile, child: _slot(i)),
+                  ],
+                ),
+              );
+            }),
           ),
         ],
       ),

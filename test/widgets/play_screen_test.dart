@@ -12,6 +12,7 @@ import 'package:tokkun_kyogikaruta/providers/game_state.dart';
 import 'package:tokkun_kyogikaruta/providers/settings_provider.dart';
 import 'package:tokkun_kyogikaruta/screens/play_screen.dart';
 import 'package:tokkun_kyogikaruta/widgets/pass_button.dart';
+import 'package:tokkun_kyogikaruta/widgets/verdict_banner.dart';
 
 import 'package:tokkun_kyogikaruta/services/audio_service.dart';
 
@@ -219,18 +220,95 @@ void main() {
     });
   });
 
-  testWidgets('タブレット：札と情報欄を上下の中央に寄せる。スマートフォンは従来どおり上詰め', (tester) async {
-    Future<double> topOfCards(Size size) async {
-      final g = await pumpPlay(tester, size: size, cfg: const GameConfig(karafudaPercent: 30));
-      final cardImage = RegExp(r'^assets/images/\d{3}\.png$');
-      final cards = find.byWidgetPredicate((w) =>
-          w is Image && (w.image is AssetImage) && cardImage.hasMatch((w.image as AssetImage).assetName));
-      final top = cards.evaluate().map((e) => tester.getRect(find.byWidget(e.widget)).top).reduce(min);
-      await finish(tester, g);
-      return top;
-    }
+  // 札の画像（assets/images/001.png〜100.png）の画面上の矩形
+  List<Rect> cardRects(WidgetTester tester) {
+    final cardImage = RegExp(r'^assets/images/\d{3}\.png$');
+    final cards = find.byWidgetPredicate(
+      (w) =>
+          w is Image &&
+          (w.image is AssetImage) &&
+          cardImage.hasMatch((w.image as AssetImage).assetName),
+    );
+    return cards
+        .evaluate()
+        .map((e) => tester.getRect(find.byWidget(e.widget)))
+        .toList();
+  }
 
-    expect(await topOfCards(const Size(393, 852)), lessThan(80)); // AppBar のすぐ下
-    expect(await topOfCards(const Size(800, 1280)), greaterThan(150)); // 中央寄せ
-  });
+  for (final karafuda in [0, 30]) {
+    for (final size in const [
+      Size(360, 640),
+      Size(393, 852),
+      Size(800, 1280),
+    ]) {
+      testWidgets('縦画面：札と情報欄を上下の中央に寄せる（下に大きな余白を残さない）（空札$karafuda%・$size）', (
+        tester,
+      ) async {
+        final g = await pumpPlay(
+          tester,
+          size: size,
+          cfg: GameConfig(karafudaPercent: karafuda),
+        );
+        final rects = cardRects(tester);
+        final top = rects.map((r) => r.top).reduce(min);
+        final appBarBottom = tester.getRect(find.byType(AppBar)).bottom;
+        final infoBottom = tester
+            .getRect(find.textContaining('読みはじめから'))
+            .bottom;
+        // 下端：見送りボタンがあればその上端、なければ画面の下端
+        final pass = find.byType(PassButton);
+        final lower = pass.evaluate().isEmpty
+            ? size.height
+            : tester.getRect(pass).top;
+        final above = top - appBarBottom;
+        final below = lower - infoBottom;
+        // 上の余白が下の余白に比べて極端に小さくない（上詰めになっていない）
+        expect(
+          above,
+          greaterThanOrEqualTo(below * 0.5 - 24),
+          reason: '$size 空札$karafuda% above=$above below=$below',
+        );
+        await finish(tester, g);
+      });
+    }
+  }
+
+  for (final karafuda in [0, 30]) {
+    for (final size in const [
+      Size(360, 640),
+      Size(393, 852),
+      Size(852, 393),
+      Size(800, 1280),
+    ]) {
+      testWidgets('判定の表示は問番号・経過秒数に重ならず、札の位置も動かない（空札$karafuda%・$size）', (
+        tester,
+      ) async {
+        final g = await pumpPlay(
+          tester,
+          size: size,
+          cfg: GameConfig(karafudaPercent: karafuda),
+        );
+        await tester.pump(const Duration(seconds: 3)); // 受付中
+        final before = cardRects(tester);
+        // 札を 1 枚押して判定を出す（正解・残念・お手つきのどれでも判定が表示される）
+        await tester.tapAt(before.first.center);
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(g.phase, PlayPhase.feedback, reason: '$size');
+        final banner = find.byType(VerdictBanner);
+        expect(banner, findsOneWidget);
+        final b = tester.getRect(banner);
+        for (final label in ['問 ', '読みはじめから']) {
+          final t = tester.getRect(find.textContaining(label));
+          expect(
+            b.overlaps(t),
+            isFalse,
+            reason: '$size 空札$karafuda%：判定が「$label」に重なる',
+          );
+        }
+        expect(cardRects(tester), before, reason: '$size：判定の表示で札が動いた');
+        expect(tester.takeException(), isNull);
+        await finish(tester, g);
+      });
+    }
+  }
 }

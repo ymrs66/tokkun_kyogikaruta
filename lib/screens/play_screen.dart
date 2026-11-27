@@ -220,7 +220,7 @@ class PlayScreen extends HookConsumerWidget {
               icon: const Icon(Icons.close),
               label: const Text('中断'),
             ),
-            title: const Text('札合わせ'),
+            title: const Text('反応練習'),
             actions: [
               IconButton(
                 tooltip: soundOn ? 'サウンドOFF' : 'サウンドON',
@@ -270,7 +270,7 @@ class PlayScreen extends HookConsumerWidget {
                       width: sideW,
                       child: Column(
                         children: [
-                          SizedBox(height: 120, child: info),
+                          SizedBox(height: _infoAreaHeight, child: info),
                           const SizedBox(height: 12),
                           if (showPass)
                             Expanded(
@@ -289,7 +289,7 @@ class PlayScreen extends HookConsumerWidget {
             }
 
             // 縦画面：敵陣・自陣・情報欄・（空札ありなら）下に見送りボタン。スクロールしない
-            const infoH = 120.0;
+            const infoH = _infoAreaHeight;
             const passH = 56.0;
             const passGap = 16.0;
             const bottomPad = 16.0;
@@ -314,8 +314,8 @@ class PlayScreen extends HookConsumerWidget {
               padding: const EdgeInsets.fromLTRB(pad, pad, pad, bottomPad),
               child: Column(
                 children: [
-                  // タブレットでは札と情報欄を上下の中央に寄せる（札の下に大きな余白を残さない）
-                  if (large) const Spacer(),
+                  // 札と情報欄を上下の中央に寄せる（縦長のスマートフォン・タブレットで札の下に大きな余白を残さない）
+                  const Spacer(),
                   cardRow(g.enemyCards, enemy: true, w: w, gap: colGap),
                   SizedBox(height: sideGap),
                   cardRow(g.selfCards, enemy: false, w: w, gap: colGap),
@@ -337,7 +337,13 @@ class PlayScreen extends HookConsumerWidget {
   }
 }
 
-/// 問番号・上の句（またはカウントダウン）・経過秒数。判定の表示はここに重ねる。
+/// 情報欄（問番号・上の句／判定・経過秒数）の高さ。固定にして、判定の表示で札が動かないようにする
+const double _infoAreaHeight = 136;
+
+/// 上の句・カウントダウン・判定を表示する欄の高さ
+const double _tickerHeight = 72;
+
+/// 問番号・上の句（またはカウントダウン）・経過秒数。判定は上の句の欄に入れ替えて表示する。
 class _InfoArea extends StatelessWidget {
   const _InfoArea({required this.game, required this.flowOn, required this.slide});
 
@@ -353,9 +359,18 @@ class _InfoArea extends StatelessWidget {
     final sec = g.elapsedSec;
     final upper = (g.currentKind == null) ? '' : g.current.upper;
 
+    final showVerdict = g.phase == PlayPhase.feedback && g.lastVerdict != null;
     final ticker = SizedBox(
-      height: 56,
-      child: counting
+      height: _tickerHeight,
+      child: showVerdict
+          // 判定は上の句の欄に入れ替えて表示する（問番号・経過秒数に重ねない。欄の高さは固定なので札も動かない）
+          ? Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: VerdictBanner(verdict: g.lastVerdict!, elapsedMs: g.lastElapsedMs),
+              ),
+            )
+          : counting
           ? Center(
               child: Text('${g.countdown}',
                   style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
@@ -376,21 +391,14 @@ class _InfoArea extends StatelessWidget {
               : const SizedBox.shrink()),
     );
 
-    return Stack(
-      alignment: Alignment.center,
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('問 $qNo / ${g.totalQuestions}',
-                style: Theme.of(context).textTheme.titleMedium),
-            ticker,
-            Text('読みはじめから ${sec ?? '—'} 秒',
-                style: Theme.of(context).textTheme.bodyMedium),
-          ],
-        ),
-        if (g.phase == PlayPhase.feedback && g.lastVerdict != null)
-          VerdictBanner(verdict: g.lastVerdict!, elapsedMs: g.lastElapsedMs),
+        Text('問 $qNo / ${g.totalQuestions}',
+            style: Theme.of(context).textTheme.titleMedium),
+        ticker,
+        Text('読みはじめから ${sec ?? '—'} 秒',
+            style: Theme.of(context).textTheme.bodyMedium),
       ],
     );
   }
