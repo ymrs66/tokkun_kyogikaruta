@@ -20,6 +20,10 @@ class MediaService {
     final name = fileName ?? _basename(assetPath);
     final f = File('${dir.path}/$name');
     await f.writeAsBytes(bytes, flush: true);
-    await Share.shareXFiles([XFile(f.path, mimeType: 'image/png', name: name)], text: text);
+    // share_plus 11 以降の API（Share.shareXFiles は非推奨）
+    await SharePlus.instance.share(ShareParams(
+      files: [XFile(f.path, mimeType: 'image/png', name: name)],
+      text: text,
+    ));
   }
 }
