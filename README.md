@@ -59,6 +59,9 @@ debug / profile ビルドでは、AdMob は常に **Google 配布のテスト ID
 
 - Android：Gradle（`android/app/build.gradle.kts` の `validateAdmobReleaseConfig`）
 - iOS：Xcode の Runner ターゲットのビルドフェーズ「AdMob Config」（`ios/scripts/admob_config.sh`）。検証に通ったときだけ、ビルド済みの Info.plist の `GADApplicationIdentifier` に本番の App ID を書き込む（debug はテスト用 App ID）
+  - ひな形（全桁 0）や `1111…` のような同じ数字の繰り返しの ID もダミーとして拒否する
+  - このフェーズは毎回実行される（増分ビルド・Xcode の Product → Archive でも省略されない）
+  - スクリプトのテスト：`sh ios/scripts/test_admob_config.sh`
 
 ## 署名
 

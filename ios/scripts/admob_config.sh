@@ -51,6 +51,13 @@ publisher_of() {
   printf '%s' "$1" | /usr/bin/sed -nE "s#^ca-app-pub-([0-9]{16})$2[0-9]{10}\$#\\1#p"
 }
 
+is_placeholder() {
+  # ca-app-pub-<16桁>[~/]<10桁> のどちらかの数字部分が、同じ数字だけでできていれば真
+  printf '%s' "$1" | /usr/bin/grep -Eq '^ca-app-pub-(0{16}|1{16}|2{16}|3{16}|4{16}|5{16}|6{16}|7{16}|8{16}|9{16})[~/]' && return 0
+  printf '%s' "$1" | /usr/bin/grep -Eq '[~/](0{10}|1{10}|2{10}|3{10}|4{10}|5{10}|6{10}|7{10}|8{10}|9{10})$' && return 0
+  return 1
+}
+
 set_app_id() {
   "$BUDDY" -c "Set :GADApplicationIdentifier $1" "$PLIST" 2>/dev/null \
     || "$BUDDY" -c "Add :GADApplicationIdentifier string $1" "$PLIST"
@@ -75,6 +82,13 @@ case "${CONFIGURATION:-}" in
       if [ "$pub" = "$TEST_PUBLISHER" ]; then
         ERRORS="$ERRORS\n - Release ビルドに Google のテスト ID が指定されています"
         break
+      fi
+    done
+    # ひな形（admob_release.example.json の全桁 0）や 1111… などのダミー値を拒否する
+    # （パブリッシャー ID・末尾の ID が同じ数字の繰り返しなら、実在の ID ではない）
+    for id in "$APP_ID" "$BANNER" "$INTERSTITIAL"; do
+      if is_placeholder "$id"; then
+        ERRORS="$ERRORS\n - ひな形・ダミーの ID（同じ数字の繰り返し）が指定されています: $id"
       fi
     done
     if [ -n "$APP_PUB" ] && [ -n "$BANNER_PUB" ] && [ -n "$INTER_PUB" ]; then
