@@ -37,6 +37,10 @@ flutter_launcher_icons:
   ios: true
   # シンプルに1枚から作る場合（両OS共通の元画像）
   image_path: assets/icons/app_icon_with_card.png
+  # iOS は透過（アルファ）のないアイコンが必要（App Store に拒否される）。
+  # 元画像の角の透明部分を枠の色（#332411）で埋めた iOS 用の画像を使う。Android は上の元画像のまま
+  image_path_ios: assets/icons/app_icon_ios.png
+  remove_alpha_ios: true
 
   # ← Androidのアダプティブアイコンをちゃんと使いたい場合は下の2行を使う
   # adaptive_icon_background: assets/icons/bg.png # または "#EFE6D5" など色コード
