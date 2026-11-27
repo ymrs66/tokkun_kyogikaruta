@@ -20,9 +20,7 @@ dependencies:
   google_mobile_ads: ^6.0.0
   audioplayers: ^6.8.1
   share_plus: ^7.2.1
-  gal: ^2.3.0
   path_provider: ^2.1.6
-  permission_handler: ^11.3.1
   url_launcher: ^6.3.3
   shared_preferences: ^2.5.6   # ← アプリ本体で使うので dependencies に置く
   auto_size_text: ^3.0.0       # ← 同上
