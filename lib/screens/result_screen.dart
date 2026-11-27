@@ -37,14 +37,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     if (!g.finished) return; // リセット後に再表示された場合など
     final outcome = await g.finalizeResult(
       repository: ref.read(scoreRepositoryProvider),
-      grantGallery: (rank) async {
-        final before = await GalleryService.loadOwned();
-        final id = await GalleryService.grantOne(rank: rank);
-        final after = await GalleryService.loadOwned();
-        final justUnlocked = !before.contains(RewardCatalog.completeIndex) &&
-            after.contains(RewardCatalog.completeIndex);
-        return (id, justUnlocked);
-      },
+      grantGallery: GalleryService.grantForResult, // 反応練習・実践練習で共通
     );
     if (!mounted) return;
     setState(() => _outcome = outcome);

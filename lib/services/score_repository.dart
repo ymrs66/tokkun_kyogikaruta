@@ -11,6 +11,8 @@ abstract class KeyValueStore {
   Future<bool> setString(String key, String value);
   Future<bool> setInt(String key, int value);
   Future<bool> setDouble(String key, double value);
+  Future<bool> remove(String key);
+  Set<String> get keys;
 }
 
 class PrefsKeyValueStore implements KeyValueStore {
@@ -18,6 +20,10 @@ class PrefsKeyValueStore implements KeyValueStore {
   final SharedPreferences _p;
   @override
   Object? get(String key) => _p.get(key);
+  @override
+  Future<bool> remove(String key) => _p.remove(key);
+  @override
+  Set<String> get keys => _p.getKeys();
   @override
   Future<bool> setString(String key, String value) => _p.setString(key, value);
   @override
@@ -72,6 +78,24 @@ class ScoreRepository {
     legacyAccuracy,
     legacyAvgSec,
   ];
+
+  /// 新しい形式の成績キーの接頭辞（Phase 4 で実践練習の記録を足しても、ここで一緒に消える）
+  static const recordPrefix = 'record.v2.';
+
+  /// 成績をリセットする（新旧の成績キーだけ。ギャラリー・設定には触れない）。
+  /// 1つでも削除に失敗したら false。
+  Future<bool> resetScores() async {
+    final targets = <String>{
+      ...allScoreKeys,
+      ..._store.keys.where((k) => k.startsWith(recordPrefix)),
+    };
+    var ok = true;
+    for (final k in targets) {
+      if (_store.get(k) == null) continue;
+      if (!await _store.remove(k)) ok = false;
+    }
+    return ok;
+  }
 
   static String _bestKey(RecordCategory c) =>
       c == RecordCategory.normal ? keyBestNormal : keyBestKarafuda;

@@ -82,6 +82,14 @@ class SettingsNotifier extends Notifier<AppSettings> {
     state = state.copyWith(otetsukiPenalty: v);
     await _p.setBool(SettingsKeys.otetsukiPenalty, v);
   }
+
+  /// 設定を初期値に戻す（settings.v1.* だけを消す。成績・ギャラリーには触れない）
+  Future<void> resetToDefaults() async {
+    for (final k in SettingsKeys.all) {
+      await _p.remove(k);
+    }
+    state = const AppSettings();
+  }
 }
 
 final settingsProvider =
