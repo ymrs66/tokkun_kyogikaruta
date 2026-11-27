@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/background_scaffold.dart';
+import '../widgets/back_to_home.dart';
 
 const _policyUrl = 'https://doc-hosting.flycricket.io/kyougi-karuta-tokkun-privacy-policy/aeb77bcf-73e8-4707-af0e-0608e39c400d/privacy'; // ←公開URLに差し替え
 
@@ -21,8 +22,9 @@ class PrivacyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BackgroundScaffold(
-      appBar: AppBar(title: const Text('プライバシーポリシー')),
+    return BackToHome(
+      child: BackgroundScaffold(
+      appBar: homeAppBar(context, 'プライバシーポリシー'),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -38,10 +40,11 @@ class PrivacyScreen extends StatelessWidget {
             const SizedBox(height: 24),
             TextButton(
               onPressed: () => context.go('/'),
-              child: const Text('スタートに戻る'),
+              child: const Text('ホームに戻る'),
             ),
           ],
         ),
+      ),
       ),
     );
   }

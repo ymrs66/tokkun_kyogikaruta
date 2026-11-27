@@ -24,6 +24,15 @@ class MemStore implements KeyValueStore {
   Future<bool> setInt(String key, int value) => _set(key, value);
   @override
   Future<bool> setDouble(String key, double value) => _set(key, value);
+  @override
+  Future<bool> remove(String key) async {
+    if (failKeys.contains(key)) return false;
+    data.remove(key);
+    return true;
+  }
+
+  @override
+  Set<String> get keys => data.keys.toSet();
 }
 
 int _seq = 0;
@@ -194,5 +203,36 @@ void main() {
     expect(ScoreRepository.allScoreKeys,
         containsAll(['bestRank', 'bestAccuracy', 'bestAvgSec',
           'record.v2.best.normal', 'record.v2.best.karafuda', 'record.v2.last']));
+  });
+
+  group('成績のリセット（Phase 3）', () {
+    test('新旧の成績キーと record.v2.* だけを消す', () async {
+      store.data.addAll({
+        'bestRank': 'A',
+        'bestAccuracy': 95,
+        'bestAvgSec': 1.9,
+        'galleryOwnedIds': ['8'],
+        'settings.v1.soundOn': false,
+        'record.v2.match.best': 'x', // Phase 4 で増えるキー
+      });
+      await repo.save(rec(rank: Rank.S, accuracy: 100, avgMs: 1000));
+      await repo.save(rec(rank: Rank.B, karafuda: 30));
+      expect(await repo.resetScores(), isTrue);
+      expect(store.data.keys.toSet(), {'galleryOwnedIds', 'settings.v1.soundOn'});
+      expect(repo.loadBest(RecordCategory.normal), isNull);
+      expect(repo.loadBest(RecordCategory.karafuda), isNull);
+      expect(repo.loadLast(), isNull);
+    });
+
+    test('削除に失敗したキーがあれば false（ほかのキーは消す）', () async {
+      store.data.addAll({'bestRank': 'A', 'bestAccuracy': 95});
+      store.failKeys.add('bestRank');
+      expect(await repo.resetScores(), isFalse);
+      expect(store.data.containsKey('bestAccuracy'), isFalse);
+    });
+
+    test('成績がなくてもエラーにならない', () async {
+      expect(await repo.resetScores(), isTrue);
+    });
   });
 }

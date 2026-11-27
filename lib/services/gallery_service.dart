@@ -19,6 +19,24 @@ class GalleryService {
     await p.setStringList(_ownedKey, owned.map((e) => e.toString()).toList());
   }
 
+  /// 獲得済みの画像をすべて消す（設定画面の「ギャラリーをリセット」）。成績・設定には触れない
+  static Future<bool> reset() async {
+    final p = await SharedPreferences.getInstance();
+    return p.remove(_ownedKey);
+  }
+
+  /// 練習の結果のランクで1枚付与し、コンプリートを今回解禁したかも返す。
+  /// 反応練習・実践練習（Phase 4）で共通に使う。重複付与の防止（同じ練習で1回）は呼び出し側
+  /// （GameState.finalizeResult）が行う。
+  static Future<(int?, bool)> grantForResult(Rank rank) async {
+    final before = await loadOwned();
+    final id = await grantOne(rank: rank);
+    final after = await loadOwned();
+    final justUnlocked = !before.contains(RewardCatalog.completeIndex) &&
+        after.contains(RewardCatalog.completeIndex);
+    return (id, justUnlocked);
+  }
+
   /// 1回の結果につき1枚付与:
   ///  1) まず該当ランクの未所持からランダム
   ///  2) そのランクがコンプ済みなら、他ランクの未所持からランダム

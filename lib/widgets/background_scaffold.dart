@@ -25,6 +25,8 @@ class BackgroundScaffold extends StatelessWidget {
       extendBodyBehindAppBar: appBar == null,
       appBar: appBar,
       body: Container(
+        // 背景は中身の高さに関係なく画面いっぱいに敷く（中身が短い画面で背景が切れないように）
+        constraints: const BoxConstraints.expand(),
         decoration: BoxDecoration(
           image: DecorationImage(
             image: AssetImage(backgroundAsset),
@@ -33,7 +35,7 @@ class BackgroundScaffold extends StatelessWidget {
             alignment: backgroundAlignment,
           ),
         ),
-        // SafeArea で上部文字切れを防止
+        // SafeArea で上部文字切れを防止（iPhone のノッチ・ホームインジケーターも避ける）
         child: SafeArea(child: child),
       ),
     );

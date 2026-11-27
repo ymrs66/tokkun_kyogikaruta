@@ -117,6 +117,9 @@ class GameState extends ChangeNotifier {
   /// 中断から「続ける」を選んだ練習（参考記録）
   bool isReference = false;
 
+  /// 読み上げ音声を再生できなかった（この練習中は上の句の文字を必ず表示する）
+  bool audioUnavailable = false;
+
   CardData? _current;
   QuestionKind? _currentKind;
   (CardData, QuestionKind)? _pendingRetire; // 判定表示が終わってから場を整える
@@ -173,6 +176,7 @@ class GameState extends ChangeNotifier {
         totalQuestions: cfg.totalQuestions, otetsukiPenalty: cfg.otetsukiPenalty);
     round = 0;
     isReference = false;
+    audioUnavailable = false;
     _current = null;
     _currentKind = null;
     _pendingRetire = null;
@@ -295,7 +299,16 @@ class GameState extends ChangeNotifier {
     _clock
       ..reset()
       ..start();
-    _audioCall((a) => a.play(muted: _muted));
+    _audioCall((a) async {
+      try {
+        await a.play(muted: _muted);
+      } catch (_) {}
+      // 音声の読み込みに失敗していたら、文字で問題が分かるようにする
+      if (seq == questionSeq && a.preparationFailed && !audioUnavailable) {
+        audioUnavailable = true;
+        notifyListeners();
+      }
+    });
     _scheduleTimeout(seq, config.timeLimitMs);
     _tickTimer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (seq != questionSeq || phase != PlayPhase.accepting) {
@@ -356,6 +369,7 @@ class GameState extends ChangeNotifier {
     stats.record(v, elapsedMs: timed ? elapsedMs : null);
     round++;
     lastVerdict = v;
+    elapsedSec = elapsedMs ~/ 1000; // 判定した時点の秒数を表示（時間切れなら 10）
     lastElapsedMs = (timed && v.isSuccess) ? elapsedMs : null;
     lastVerdictSeq = seq;
     highlightCardId =

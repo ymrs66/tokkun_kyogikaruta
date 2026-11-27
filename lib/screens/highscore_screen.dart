@@ -10,6 +10,7 @@ import '../services/gallery_service.dart';
 import '../data/reward_catalog.dart';
 import '../providers/game_state.dart'; // Rank enum 用
 import '../widgets/score_card.dart';
+import '../widgets/back_to_home.dart';
 import 'result_screen.dart' show ConditionChip, formatAvg;
 
 class HighScoreScreen extends ConsumerWidget {
@@ -26,8 +27,10 @@ class HighScoreScreen extends ConsumerWidget {
     final indices = RewardCatalog.byRank[rankEnum]!;
     final t = Theme.of(context).textTheme;
 
-    return BackgroundScaffold(
-      appBar: AppBar(title: const Text('あなたのランク')),
+    // Phase 4 で実践練習の成績を加えるときは、ここを「反応練習／実践練習」のタブにする
+    return BackToHome(
+      child: BackgroundScaffold(
+      appBar: homeAppBar(context, '成績・ランク'),
       child: FutureBuilder<Set<int>>(
         future: GalleryService.loadOwned(),
         builder: (ctx, snap) {
@@ -42,6 +45,16 @@ class HighScoreScreen extends ConsumerWidget {
                 constraints: const BoxConstraints(maxWidth: 560),
                 child: Column(
                   children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 4, bottom: 6),
+                        child: Text('反応練習',
+                            style: t.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                shadows: const [Shadow(color: Colors.white, blurRadius: 6)])),
+                      ),
+                    ),
                     _RecordCard(title: '最高ランク（空札なし）', record: bestNormal, big: true),
                     const SizedBox(height: 10),
                     _RecordCard(title: '最高ランク（空札あり）', record: bestKarafuda),
@@ -81,7 +94,7 @@ class HighScoreScreen extends ConsumerWidget {
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: () => context.go('/'),
-                      child: const Text('スタートに戻る'),
+                      child: const Text('ホームに戻る'),
                     ),
                   ],
                 ),
@@ -89,6 +102,7 @@ class HighScoreScreen extends ConsumerWidget {
             ),
           );
         },
+      ),
       ),
     );
   }

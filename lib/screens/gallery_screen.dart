@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../widgets/background_scaffold.dart';
 import '../data/reward_catalog.dart';
 import '../services/gallery_service.dart';
-import '../providers/game_state.dart'; // Rank 見出し用
+import '../widgets/back_to_home.dart';
 import 'package:go_router/go_router.dart';
 import '../services/media_service.dart';
 
@@ -48,7 +48,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
-                    color: Colors.black.withOpacity(0.85),
+                    color: Colors.black.withValues(alpha: 0.85),
                     padding: const EdgeInsets.all(8),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -137,8 +137,9 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BackgroundScaffold(
-      appBar: AppBar(title: const Text('ギャラリー')),
+    return BackToHome(
+      child: BackgroundScaffold(
+      appBar: homeAppBar(context, 'ギャラリー'),
       child: Column(
         children: [
           Expanded(
@@ -156,10 +157,11 @@ class _GalleryScreenState extends State<GalleryScreen> {
           const SizedBox(height: 12),
           ElevatedButton(
             onPressed: () => context.go('/'),
-            child: const Text('スタートに戻る'),
+            child: const Text('ホームに戻る'),
           ),
           const SizedBox(height: 12),
         ],
+      ),
       ),
     );
   }
