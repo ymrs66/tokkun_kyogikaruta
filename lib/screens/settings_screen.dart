@@ -5,6 +5,8 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../domain/question_plan.dart';
 import '../providers/game_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/ad_consent.dart';
+import '../services/ad_service.dart';
 import '../services/gallery_service.dart';
 import '../widgets/back_to_home.dart';
 import '../widgets/background_scaffold.dart';
@@ -141,6 +143,22 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                     ),
                 ]),
+                // UMP がプライバシー オプションを求める地域・利用者のときだけ表示する
+                ValueListenableBuilder<AdConsentState>(
+                  valueListenable: AdService.consent.state,
+                  builder: (context, consent, _) {
+                    if (!consent.privacyOptionsRequired) return const SizedBox.shrink();
+                    return section('広告', [
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.privacy_tip_outlined),
+                        title: const Text('広告のプライバシー設定'),
+                        subtitle: const Text('広告に関する同意・選択を確認・変更します。'),
+                        onTap: () => AdService.consent.showPrivacyOptions(),
+                      ),
+                    ]);
+                  },
+                ),
                 section('データ', [
                   ListTile(
                     contentPadding: EdgeInsets.zero,
