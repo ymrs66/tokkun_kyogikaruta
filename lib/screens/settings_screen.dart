@@ -146,11 +146,11 @@ class SettingsScreen extends ConsumerWidget {
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.restart_alt),
                     title: const Text('成績をリセット'),
-                    subtitle: const Text('最高記録・前回の結果を消します。ギャラリーと設定は残ります。'),
+                    subtitle: const Text('反応練習・実践練習の最高記録と前回の結果を消します。ギャラリーと設定は残ります。'),
                     onTap: () async {
                       if (!await _confirm(context,
                           title: '成績をリセットしますか？',
-                          message: '最高記録と前回の結果を消します。もとに戻せません。',
+                          message: '反応練習・実践練習の最高記録と前回の結果を消します。もとに戻せません。',
                           ok: 'リセット')) {
                         return;
                       }
@@ -194,7 +194,7 @@ class SettingsScreen extends ConsumerWidget {
                     onTap: () async {
                       if (!await _confirm(context,
                           title: '設定を初期値に戻しますか？',
-                          message: '空札なし・ペナルティなし・音声あり・文字表示ありに戻ります。',
+                          message: '空札なし・ペナルティなし・音声あり・文字表示あり、実践練習は暗記1分・空札30%に戻ります。',
                           ok: '戻す')) {
                         return;
                       }

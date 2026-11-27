@@ -143,7 +143,11 @@ class _GalleryScreenState extends State<GalleryScreen> {
       child: Column(
         children: [
           Expanded(
-            child: ListView(
+            // 大きな画面では画像が大きくなりすぎないよう、幅を 640 までにする
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: ListView(
               children: [
                 _section('S ランク', RewardCatalog.sIndices),
                 _section('A ランク', RewardCatalog.aIndices),
@@ -152,6 +156,8 @@ class _GalleryScreenState extends State<GalleryScreen> {
                 _section('D ランク', RewardCatalog.dIndices),
                 _section('コンプリート', [RewardCatalog.completeIndex], crossAxisCount: 1),
               ],
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 12),

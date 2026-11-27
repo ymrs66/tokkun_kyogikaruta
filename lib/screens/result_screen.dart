@@ -5,13 +5,14 @@ import '../widgets/background_scaffold.dart';
 import 'package:tokkun_kyogikaruta/services/ad_service.dart';
 
 import '../domain/practice_record.dart';
+import '../domain/rank_policy.dart' show PracticeMode;
 import '../domain/verdict.dart';
 import '../providers/game_provider.dart';
 import '../providers/game_state.dart';
 import '../services/gallery_service.dart';
-import '../data/reward_catalog.dart';
 import '../widgets/score_card.dart';
 import '../widgets/back_to_home.dart';
+import '../widgets/gallery_award.dart';
 
 class ResultScreen extends ConsumerStatefulWidget {
   const ResultScreen({super.key});
@@ -43,47 +44,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     if (!mounted) return;
     setState(() => _outcome = outcome);
 
-    final id = outcome.grantedGalleryId;
-    if (id != null) {
-      // 獲得演出
-      await showDialog(
-        context: context,
-        barrierDismissible: true,
-        builder: (_) => AlertDialog(
-          title: const Text('画像を獲得！'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(RewardCatalog.slots[id], width: 220, fit: BoxFit.cover),
-              const SizedBox(height: 8),
-              Text('NEW!  ${RewardCatalog.labelOf(id)} を入手しました'),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
-          ],
-        ),
-      );
-    }
-
-    // コンプリートが今回で解禁されたらお知らせ
-    if (outcome.completeUnlocked && mounted) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('コンプリート！'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(RewardCatalog.completeImage, width: 220, fit: BoxFit.cover),
-              const SizedBox(height: 8),
-              const Text('全ランク画像を集めました！'),
-            ],
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
-        ),
-      );
-    }
+    await showGalleryAward(context, outcome); // 獲得演出・コンプリート（実践練習と共通）
   }
 
   bool _leaving = false;
@@ -178,9 +139,17 @@ class ConditionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = record.karafudaPercent > 0
-        ? '空札あり ${record.karafudaPercent}%${record.otetsukiPenalty ? '・お手つきペナルティ' : ''}'
-        : '空札なし';
+    final String text;
+    if (record.mode == PracticeMode.match) {
+      // 実践練習：お手つきの減点は常にあるので表示しない。暗記時間を添える
+      final mem = record.memorizeSec;
+      text = '${record.karafudaPercent > 0 ? '空札 ${record.karafudaPercent}%' : '空札なし'}'
+          '${mem == null ? '' : '・暗記 ${mem < 60 ? '$mem秒' : '${mem ~/ 60}分'}'}';
+    } else {
+      text = record.karafudaPercent > 0
+          ? '空札あり ${record.karafudaPercent}%${record.otetsukiPenalty ? '・お手つきペナルティ' : ''}'
+          : '空札なし';
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(

@@ -60,6 +60,7 @@ void main() {
   group('ホーム画面（4サイズ）', () {
     const sizes = {
       '小型スマホ縦 360×640': Size(360, 640),
+      'iPhone SE 相当 375×667': Size(375, 667),
       '標準スマホ縦 393×852': Size(393, 852),
       'スマホ横 852×393': Size(852, 393),
       'タブレット縦 800×1280': Size(800, 1280),
@@ -74,12 +75,12 @@ void main() {
           expect(screen.contains(r.topLeft) && screen.contains(r.bottomRight - const Offset(1, 1)),
               isTrue, reason: '$text が画面外: $r');
         }
-        // 導線（スクロールすれば届く）
-        for (final label in ['遊び方説明', '成績・ランク', 'ギャラリー', '設定', 'プライバシーポリシー']) {
+        // 導線（スクロールすれば届く）。Phase 4 で実践練習と説明文を追加
+        for (final label in ['実践練習', '札の暗記・位置の把握・競技に近い札取りを練習する',
+          '遊び方説明', '成績・ランク', 'ギャラリー', '設定', 'プライバシーポリシー']) {
           expect(find.text(label), findsOneWidget, reason: label);
         }
-        // Phase 3 では表示しない・廃止したもの
-        expect(find.text('実践練習'), findsNothing);
+        // 廃止したもの
         expect(find.text('スコアのリセット'), findsNothing);
         expect(find.text('スタート'), findsNothing);
       });
