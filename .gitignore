@@ -71,3 +71,6 @@ ios/Runner/GoogleService-Info.plist
 *.apk
 /app-release.zip
 /all_code.txt
+
+# FVM Version Cache
+.fvm/
