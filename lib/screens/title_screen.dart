@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../providers/game_provider.dart';
+import '../models/game_config.dart';
+import '../providers/settings_provider.dart';
 import '../widgets/background_scaffold.dart';
 // 広告関係
 import 'package:tokkun_kyogikaruta/widgets/ad_banner.dart';
@@ -42,7 +44,8 @@ class TitleScreen extends ConsumerWidget {
               onPressed: () {
                 final g = ref.read(gameProvider);
                 g.resetGame();      // スコアなど初期化
-                g.startGame();      // ← ここで初めて 1 問目を作成しタイマー開始
+                // 設定を練習開始時に固定する（1問目の準備。カウントダウンは練習画面で開始）
+                g.startGame(GameConfig.fromSettings(ref.read(settingsProvider)));
                 context.go('/play');
               },
               child: const Text('スタート', style: TextStyle(fontSize: 20)),
@@ -61,8 +64,12 @@ class TitleScreen extends ConsumerWidget {
                     ],
                   ));
               if (ok ?? false) {
+                // 従来どおり全データ（成績の新旧キー・ギャラリー・設定）を消す。
+                // 成績だけを消すリセットは Phase 3 の設定画面で用意する。
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.clear();
+                // メモリ上の設定も保存値（＝初期値）に合わせる
+                ref.invalidate(settingsProvider);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('リセットしました！')));
