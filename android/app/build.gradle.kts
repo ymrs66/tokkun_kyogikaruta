@@ -83,7 +83,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = JavaVersion.VERSION_17.toString() }
 
     defaultConfig {
         applicationId = "jp.ymrsystem.karutatokkun" // ←本番用に固有IDへ
@@ -127,5 +126,12 @@ android {
             }
         }
     }
+
+// Kotlin 2.3 以降は kotlinOptions.jvmTarget が使えないため compilerOptions で指定する（Java 17 のまま）
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
 
 flutter { source = "../.." }
