@@ -27,7 +27,7 @@ class VerdictBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final (color, icon, label, sub) = styleOf(verdict);
     final time = elapsedMs == null ? null : '${(elapsedMs! / 1000).toStringAsFixed(2)} 秒';
-    final detail = [if (time != null) time, if (sub != null) sub].join('　');
+    final detail = [?time, ?sub].join('　');
     return IgnorePointer(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
