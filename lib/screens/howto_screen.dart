@@ -2,6 +2,7 @@ import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/background_scaffold.dart';
+import '../domain/rank_policy.dart';
 
 class HowToScreen extends StatelessWidget {
   const HowToScreen({super.key});
@@ -22,7 +23,7 @@ class HowToScreen extends StatelessWidget {
             title: '＜操作方法＞',
             children: [
               _BulletRow(icon: Icons.play_circle, text: '上の句が流れたら対応する下の句札をタップ'),
-              _BulletRow(icon: Icons.analytics_outlined, text: '10問連続で正解率と平均取得秒数を計測'),
+              _BulletRow(icon: Icons.analytics_outlined, text: '10問連続で正答率と平均取得時間を計測'),
             ],
           ),
 
@@ -44,11 +45,15 @@ class HowToScreen extends StatelessWidget {
           SectionCard(
             title: '＜ランク判定基準＞',
             children: [
-              _RankRow(rank: 'S', rule: '正解率 100% 以上 かつ 平均取得 1 秒以内'),
-              _RankRow(rank: 'A', rule: '正解率 95% 以上 かつ 平均取得 1.5 秒以内'),
-              _RankRow(rank: 'B', rule: '正解率 90% 以上 かつ 平均取得 2 秒以内'),
-              _RankRow(rank: 'C', rule: '正解率 80% 以上 かつ 平均取得 3 秒以内'),
-              _RankRow(rank: 'D', rule: '上記以外'),
+              // 基準値は lib/domain/rank_policy.dart の1か所にある
+              for (final r in RankPolicy.rules)
+                _RankRow(
+                  rank: r.rank.name,
+                  rule: '正答率 ${r.minAccuracy}% 以上 かつ '
+                      '平均取得 ${formatSecondsLimit(r.maxAvgMs)} 秒以内',
+                ),
+              const _RankRow(rank: 'D', rule: '上記以外'),
+              const _Footnote(text: '※平均取得時間はミリ秒単位で計測しています（正解した札の平均）。'),
             ],
           ),
 

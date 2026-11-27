@@ -1,352 +1,350 @@
 // lib/screens/play_screen.dart
-import 'dart:ui';                 // ← ぼかし用（BackdropFilter）
-import 'package:flutter/services.dart';
-import 'dart:math' show pi;
+import 'dart:math' show min, pi;
+
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+
+import '../domain/verdict.dart';
 import '../models/card_data.dart';
 import '../providers/game_provider.dart';
 import '../providers/game_state.dart';
-import '../widgets/background_scaffold.dart';
-import '../services/audio_service.dart';
 import '../providers/settings_provider.dart';
+import '../widgets/background_scaffold.dart';
+import '../widgets/pass_button.dart';
+import '../widgets/verdict_banner.dart';
+
+/// 札の縦横比（画像 160×213）
+const double _cardAspect = 160 / 213;
 
 class PlayScreen extends HookConsumerWidget {
   const PlayScreen({super.key});
 
-  /* ---------- ヘルパ ---------- */
-  void _handleTap(BuildContext ctx, GameState g, CardData c, KarutaAudio audio) {
-    audio.stop();                 // 次の問題へ行くので停止
-    final ok = g.tap(c);
-    _flashCenter(ctx, ok: ok);      // ★ SnackBar の代わりに中央フラッシュ
-  }
-
-  void _flashCenter(BuildContext context, {required bool ok}) {
-    final overlay = Overlay.of(context, rootOverlay: true);
-    if (overlay == null) return;
-
-    final Color color = ok ? Colors.green : Colors.red;
-    final String label = ok ? '正解！' : '残念';
-    // ハプティックは任意
-    ok ? HapticFeedback.mediumImpact() : HapticFeedback.heavyImpact();
-
-    late OverlayEntry entry;
-    entry = OverlayEntry(
-      builder: (_) => Positioned.fill(
-        child: IgnorePointer( // ★背面のタップをブロックしない
-          child: Center(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-                child: AnimatedScale(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOutBack,
-                  scale: 1.0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.92),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [BoxShadow(color: color.withOpacity(0.35), blurRadius: 20)],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(ok ? Icons.check_circle : Icons.close_rounded,
-                            color: Colors.white, size: 28),
-                        const SizedBox(width: 12),
-                        Text(label,
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    overlay.insert(entry);
-    // 650ms後に自動で消す
-    Future.delayed(const Duration(milliseconds: 650)).then((_) {
-      // removeは1回だけ
-      try { entry.remove(); } catch (_) {}
-    });
-  }
-
-  Future<void> _confirmBack(BuildContext ctx, WidgetRef ref) async {
-    final ok = await showDialog<bool>(
-      context: ctx,
-      builder: (_) => AlertDialog(
-        content: const Text('タイトルへ戻りますか？'),
+  /// 中断ダイアログ（「✕ 中断」・戻る・バックグラウンド化）。表示中はタイマー・音声・進行を止める。
+  static Future<void> openPauseDialog(BuildContext context, WidgetRef ref) async {
+    final g = ref.read(gameProvider);
+    if (!g.requestPause()) return; // 練習中でない・すでに表示中なら何もしない（ダイアログは1つだけ）
+    final canResume = g.canResume;
+    final quit = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dctx) => AlertDialog(
+        title: const Text('練習を中断しますか？'),
+        // 小型端末・横画面でもボタンが隠れないようにスクロール可能にする
+        scrollable: true,
+        content: Text(canResume
+            // 判定前に止めた場合は別の札で出し直し、判定済みなら次の問題（どちらも別の札）
+            ? '読み上げと時間計測を停止しています。\n'
+                '続ける場合は、別の札から出題します。\n'
+                '再開後の成績は参考記録となり、最高記録の更新・ギャラリー獲得の対象外になります。'
+            : '読み上げと時間計測を停止しています。\n'
+                '残りの問題に使える札がないため、続けることはできません。'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('キャンセル')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true),  child: const Text('OK')),
+          if (canResume)
+            TextButton(
+                onPressed: () => Navigator.pop(dctx, false), child: const Text('続ける')),
+          TextButton(
+              onPressed: () => Navigator.pop(dctx, true), child: const Text('中断する')),
         ],
       ),
     );
-    if (ok ?? false) {
-      ref.read(gameProvider).resetGame();
-      if (ctx.mounted) ctx.go('/');
+    // 「戻る」でダイアログを閉じた（null）ときは「続ける」と同じ
+    if (quit == true || !g.resume()) {
+      g.abort();
+      if (context.mounted) context.go('/');
     }
   }
 
-  Widget _ticker(bool counting, int counter, Animation<Offset> slide, String text, {required bool flowOn}) {
-    return SizedBox(
-      height: 64,                        // 高さ固定でレイアウトを揺らさない
-      child: counting
-          ? Center(
-        child: AutoSizeText(
-          '$counter',
-          maxLines: 1,
-          minFontSize: 20,
-          style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold),
-        ),
-      )
-          : (flowOn
-          // ON: スライド表示
-          ? SlideTransition(
-          position: slide,
-          child: AutoSizeText(
-              text,
-              maxLines: 2,
-              minFontSize: 12,
-              overflow: TextOverflow.fade,
-              style: const TextStyle(fontSize: 20),
-          ),
-      )
-    // OFF: 文字そのものを非表示に（高さは SizedBox で確保）
-          : const SizedBox.shrink()),
-    );
-  }
-
-  /* ------------------------------ build ------------------------------ */
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final g        = ref.watch(gameProvider);
-    final notifier = ref.read(gameProvider);
-    final soundOn  = ref.watch(soundOnProvider);
-    final flowOn   = ref.watch(textFlowOnProvider);
-    final audio    = useMemoized(() => KarutaAudio(), []);
-    useEffect(() { return () { audio.dispose(); }; }, [audio]); // 破棄
+    final g = ref.watch(gameProvider);
+    final soundOn = ref.watch(soundOnProvider);
+    final flowOn = ref.watch(textFlowOnProvider);
+    final audioFactory = ref.read(practiceAudioFactoryProvider);
+    final audio = useMemoized(audioFactory);
 
-    /* ゲーム終了時に結果画面へ */
+    // 練習画面の表示で1問目を始め、閉じるときに音声を解放する
+    useEffect(() {
+      final game = ref.read(gameProvider);
+      game.attachAudio(audio);
+      game.setMuted(!ref.read(soundOnProvider));
+      // build 中に状態を変えないよう、最初のフレームの後に始める
+      WidgetsBinding.instance.addPostFrameCallback((_) => game.begin());
+      return () {
+        game.detachAudio(audio);
+        if (game.phase != PlayPhase.finished && game.phase != PlayPhase.idle) {
+          // 画面の破棄中に通知しないよう、次のフレームで止める
+          WidgetsBinding.instance.addPostFrameCallback((_) => game.abort());
+        }
+        audio.dispose();
+      };
+    }, [audio]);
+
+    // 10問終了で結果画面へ
     useEffect(() {
       if (g.finished) {
         WidgetsBinding.instance.addPostFrameCallback(
-              (_) => context.mounted ? context.go('/result') : null,
+          (_) => context.mounted ? context.go('/result') : null,
         );
       }
       return null;
     }, [g.finished]);
 
-    /* カウントダウン用 hooks */
-    final isCounting = useState(true);
-    final counter    = useState(3);
-    final animCtrl   = useAnimationController(duration: const Duration(seconds: 8));
-    final slideAnim  = Tween(begin: const Offset(1, 0), end: const Offset(-1, 0))
-        .animate(CurvedAnimation(parent: animCtrl, curve: Curves.linear));
+    // バックグラウンド化（ホーム・着信など）も中断として扱う
+    useOnAppLifecycleStateChange((_, state) {
+      if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+        if (context.mounted) openPauseDialog(context, ref);
+      }
+    });
 
-    /* 3→2→1 → 詠み上げ開始（音声はプリロードしておき、0の瞬間に resume） */
+    // 判定の振動（判定ごとに1回）
     useEffect(() {
-      if (isCounting.value) {
-        var cancelled = false;
-        Future.doWhile(() async {
-          await Future.delayed(const Duration(seconds: 1));
-          if (cancelled) return false;
-          counter.value -= 1;
-          if (counter.value == 0) {
-            isCounting.value = false;
-            // 同期性を上げるため同フレームで実行
-            animCtrl.forward();
-            // 準備済みをそのまま再生（ミュートなら音量0で進行）
-            audio.playPrepared(muted: !soundOn);
-            // ★ ここで 10 秒計測を開始（3,2,1 の後にスタート）
-            ref.read(gameProvider).startMeasurement();
-            return false;
-          }
-          return true;
-        });
-        return () { cancelled = true; };
+      final v = g.lastVerdict;
+      if (v != null) {
+        v.isSuccess ? HapticFeedback.mediumImpact() : HapticFeedback.heavyImpact();
       }
       return null;
-    }, [isCounting.value, g.current.id]); // soundOnは入れない（ズレ回避）
+    }, [g.lastVerdictSeq]);
 
-    /* 新しい札になったらリセット */
+    // 上の句の文字スクロール（受付開始で流す）
+    final animCtrl = useAnimationController(duration: const Duration(seconds: 8));
     useEffect(() {
-      // 新しい札の音源を先にロード→巻き戻して一時停止
-      audio.prepareUpper(g.current.id);
-      isCounting.value = false;
-      Future.microtask(() => isCounting.value = true);
-      counter.value = 3;
-      animCtrl.reset();
+      if (g.phase == PlayPhase.accepting) {
+        animCtrl.forward(from: 0);
+      } else if (g.phase == PlayPhase.countdown || g.phase == PlayPhase.ready) {
+        animCtrl.reset();
+      } else if (g.phase == PlayPhase.paused) {
+        animCtrl.stop();
+      }
       return null;
-    }, [g.current.id]);
+    }, [g.phase, g.questionSeq]);
+    final slideAnim = useMemoized(
+        () => Tween(begin: const Offset(1, 0), end: const Offset(-1, 0))
+            .animate(CurvedAnimation(parent: animCtrl, curve: Curves.linear)),
+        [animCtrl]);
 
-    /* --------- レイアウト --------- */
-    final w = MediaQuery.of(context).size.width;
-    const horizontalPadding = 8.0;       // SingleChildScrollView の左右 padding と合わせる
-    const spacing = 8.0;                  // Wrap の spacing
-    const cols = 3;
+    final seq = g.questionSeq;
+    final showPass = g.config.karafudaEnabled;
 
-    // 画面幅から 3 列のカード幅を逆算（最小90 / 最大240に丸める）
-    final contentW = w - horizontalPadding * 2;
-    final rawCardW = (contentW - spacing * (cols - 1)) / cols;
-    final cardW = rawCardW.clamp(90.0, 240.0);
+    Widget card(CardData c, {required bool enemy, required double w}) {
+      final highlight = g.phase == PlayPhase.feedback && g.highlightCardId == c.id;
+      return GestureDetector(
+        onTap: () => g.onCardTap(c.id, seq: seq),
+        child: SizedBox(
+          width: w,
+          height: w / _cardAspect,
+          child: DecoratedBox(
+            // 強調は枠を重ねるだけ（札の大きさ・位置は変えない）
+            position: DecorationPosition.foreground,
+            decoration: BoxDecoration(
+              border: highlight ? Border.all(color: const Color(0xFFC62828), width: 4) : null,
+            ),
+            child: Transform.rotate(
+              angle: enemy ? pi : 0,
+              child: Image.asset(c.imagePath, fit: BoxFit.contain),
+            ),
+          ),
+        ),
+      );
+    }
 
-    // 行間は固定でOK
-    const gapH = 16.0;
+    Widget cardRow(List<CardData> cards, {required bool enemy, required double w}) => Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (final c in cards)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: card(c, enemy: enemy, w: w),
+              ),
+          ],
+        );
 
-
-    Widget cardWidget(CardData c, {bool flip = false}) => GestureDetector(
-        onTap: () {
-    // カウントダウン中はタップ無効（視覚的フィードバックだけ出したければここで軽いバイブ等）
-              if (isCounting.value) return;
-              _handleTap(context, notifier, c, audio);
-            },
-      child: Transform.rotate(
-        angle: flip ? pi : 0,
-        child: Image.asset(c.imagePath, width: cardW),
-      ),
+    final info = _InfoArea(
+      game: g,
+      flowOn: flowOn,
+      slide: slideAnim,
     );
-    // Android の「戻る」（target 36 では予測型「戻る」）で練習中にアプリが閉じないよう、
-    // 「スタートに戻る」ボタンと同じ確認ダイアログを出す。
-    // - PopScope(canPop: false)：「戻る」を Flutter 側で処理することを Android に伝える
-    // - BackButtonListener：go_router 13.x はルートが1つだけのとき PopScope の
-    //   コールバックを呼ばないため、Router より先に「戻る」を受け取って処理する
+
+    void pass() => g.onPass(seq: seq);
+
     return PopScope(
       canPop: false,
       child: BackButtonListener(
         onBackButtonPressed: () async {
           // ダイアログ表示中は、通常どおりダイアログを閉じる
           if (!(ModalRoute.of(context)?.isCurrent ?? true)) return false;
-          _confirmBack(context, ref);
+          openPauseDialog(context, ref);
           return true;
         },
         child: BackgroundScaffold(
-        appBar: AppBar(
-            title: const Text('百人一首 - 札合わせ'),
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+            leadingWidth: 96,
+            leading: TextButton.icon(
+              onPressed: () => openPauseDialog(context, ref),
+              icon: const Icon(Icons.close),
+              label: const Text('中断'),
+            ),
+            title: const Text('札合わせ'),
             actions: [
               IconButton(
                 tooltip: soundOn ? 'サウンドOFF' : 'サウンドON',
                 icon: Icon(soundOn ? Icons.volume_up : Icons.volume_off),
                 onPressed: () {
-                  ref.read(soundOnProvider.notifier).state = !soundOn;
-                  // 再生は止めない。音量だけ切り替える
-                  audio.setMuted(soundOn); // soundOnは旧値なので「今からミュートするか」を表す
+                  ref.read(settingsProvider.notifier).setSoundOn(!soundOn);
+                  g.setMuted(soundOn); // 再生は止めず、音量だけ切り替える
                 },
               ),
               IconButton(
-                  tooltip: flowOn ? '文字スクロールOFF' : '文字スクロールON',
-                  icon: Icon(flowOn ? Icons.subtitles : Icons.subtitles_off),
-                  onPressed: () {
-                    ref.read(textFlowOnProvider.notifier).state = !flowOn;
-                    // アニメは裏で走らせておくので特に制御不要（ONに戻したら途中から見える）
-                    },
+                tooltip: flowOn ? '文字スクロールOFF' : '文字スクロールON',
+                icon: Icon(flowOn ? Icons.subtitles : Icons.subtitles_off),
+                onPressed: () =>
+                    ref.read(settingsProvider.notifier).setTextFlowOn(!flowOn),
               ),
             ],
           ),
-      child: LayoutBuilder(
-        builder: (ctx, constraints) {
-          return SingleChildScrollView(
-            // 画面が小さい端末でも必ずスクロール可能に
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: ConstrainedBox(
-              // ビューポート高に満たないときは最小高さで下まで広げる
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Padding(
-                // SafeArea は BackgroundScaffold 側で入っているので固定パディングでOK
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+          child: LayoutBuilder(builder: (ctx, box) {
+            final landscape = box.maxWidth > box.maxHeight;
+            const pad = 8.0;
+            const rowGap = 12.0;
+            const cardGap = 8.0;
+
+            if (landscape) {
+              // 横画面：左に札（2段）、右に情報と縦長の見送りボタン
+              final sideW = min(260.0, box.maxWidth * 0.34);
+              final cardsW = box.maxWidth - sideW - pad * 3;
+              final byH = (box.maxHeight - pad * 2 - rowGap) / 2 * _cardAspect;
+              final byW = (cardsW - cardGap * 3) / 3;
+              final w = min(min(byH, byW), 200.0);
+              return Padding(
+                padding: const EdgeInsets.all(pad),
+                child: Row(
                   children: [
-                    // 敵陣
-                    SizedBox(
-                      width: double.infinity,
-                      child: Wrap(
-                        alignment: WrapAlignment.center,
-                        spacing: spacing,
-                        runSpacing: spacing,
-                        children: g.enemyCards
-                            .map((c) => GestureDetector(
-                          onTap: () {
-                            if (isCounting.value) return;
-                            _handleTap(context, notifier, c, audio);
-                          },
-                          child: Transform.rotate(
-                            angle: pi,
-                            child: Image.asset(c.imagePath, width: cardW.toDouble()),
-                          ),
-                        ))
-                            .toList(),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          cardRow(g.enemyCards, enemy: true, w: w),
+                          const SizedBox(height: rowGap),
+                          cardRow(g.selfCards, enemy: false, w: w),
+                        ],
                       ),
                     ),
-
-                    SizedBox(height: gapH),
-
-                    // 自陣
+                    const SizedBox(width: pad),
                     SizedBox(
-                      width: double.infinity,
-                      child: Wrap(
-                        alignment: WrapAlignment.center,
-                        spacing: spacing,
-                        runSpacing: spacing,
-                        children: g.selfCards
-                            .map((c) => GestureDetector(
-                          onTap: () {
-                            if (isCounting.value) return;
-                            _handleTap(context, notifier, c, audio);
-                          },
-                          child: Image.asset(c.imagePath, width: cardW.toDouble()),
-                        ))
-                            .toList(),
+                      width: sideW,
+                      child: Column(
+                        children: [
+                          SizedBox(height: 120, child: info),
+                          const SizedBox(height: 12),
+                          if (showPass)
+                            Expanded(
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: PassButton(
+                                    enabled: g.canAcceptInput, onPressed: pass, vertical: true),
+                              ),
+                            ),
+                        ],
                       ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    AutoSizeText(
-                      '問 ${g.round + 1} / ${GameState.maxRound}',
-                      maxLines: 1,
-                      minFontSize: 14,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    _ticker(
-                      isCounting.value,
-                      counter.value,
-                      slideAnim,
-                      g.current.upper,
-                      flowOn: flowOn,
-                    ),
-                    AutoSizeText(
-                      '読みはじめから ${g.elapsedSec} 秒',
-                      maxLines: 1,
-                      minFontSize: 12,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    ElevatedButton(
-                      onPressed: () => _confirmBack(context, ref),
-                      child: const Text('スタートに戻る'),
                     ),
                   ],
                 ),
+              );
+            }
+
+            // 縦画面：敵陣・自陣・情報欄・（空札ありなら）下に見送りボタン。スクロールしない
+            const infoH = 120.0;
+            const passH = 56.0;
+            const passGap = 16.0;
+            const bottomPad = 16.0;
+            final reserved = pad * 2 + rowGap + infoH + bottomPad + (showPass ? passH + passGap : 0);
+            final byH = (box.maxHeight - reserved) / 2 * _cardAspect;
+            final byW = (min(box.maxWidth, 640.0) - pad * 2 - cardGap * 3) / 3;
+            final w = min(min(byH, byW), 200.0).clamp(40.0, 200.0);
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(pad, pad, pad, bottomPad),
+              child: Column(
+                children: [
+                  cardRow(g.enemyCards, enemy: true, w: w),
+                  const SizedBox(height: rowGap),
+                  cardRow(g.selfCards, enemy: false, w: w),
+                  SizedBox(height: infoH, child: info),
+                  const Spacer(),
+                  if (showPass)
+                    SizedBox(
+                      height: passH,
+                      width: min(box.maxWidth - pad * 2, 480),
+                      child: PassButton(enabled: g.canAcceptInput, onPressed: pass),
+                    ),
+                ],
               ),
-            ),
-          );
-        },
-      ),
+            );
+          }),
         ),
       ),
+    );
+  }
+}
+
+/// 問番号・上の句（またはカウントダウン）・経過秒数。判定の表示はここに重ねる。
+class _InfoArea extends StatelessWidget {
+  const _InfoArea({required this.game, required this.flowOn, required this.slide});
+
+  final GameState game;
+  final bool flowOn;
+  final Animation<Offset> slide;
+
+  @override
+  Widget build(BuildContext context) {
+    final g = game;
+    final counting = g.phase == PlayPhase.countdown || g.phase == PlayPhase.ready;
+    final qNo = min(g.round + (g.phase == PlayPhase.feedback ? 0 : 1), g.totalQuestions);
+    final sec = g.elapsedSec;
+    final upper = (g.currentKind == null) ? '' : g.current.upper;
+
+    final ticker = SizedBox(
+      height: 56,
+      child: counting
+          ? Center(
+              child: Text('${g.countdown}',
+                  style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
+            )
+          : (flowOn && g.phase != PlayPhase.paused
+              ? ClipRect(
+                  child: SlideTransition(
+                    position: slide,
+                    child: Center(
+                      child: AutoSizeText(upper,
+                          maxLines: 1,
+                          minFontSize: 12,
+                          overflow: TextOverflow.fade,
+                          style: const TextStyle(fontSize: 20)),
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink()),
+    );
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('問 $qNo / ${g.totalQuestions}',
+                style: Theme.of(context).textTheme.titleMedium),
+            ticker,
+            Text('読みはじめから ${sec ?? '—'} 秒',
+                style: Theme.of(context).textTheme.bodyMedium),
+          ],
+        ),
+        if (g.phase == PlayPhase.feedback && g.lastVerdict != null)
+          VerdictBanner(verdict: g.lastVerdict!, elapsedMs: g.lastElapsedMs),
+      ],
     );
   }
 }
