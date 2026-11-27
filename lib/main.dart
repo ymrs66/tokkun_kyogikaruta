@@ -19,5 +19,6 @@ Future<void> main() async {
 
   // 広告：起動ごとに同意情報を確認し、許可されたときだけ SDK を初期化して読み込む。
   // 画面の表示・練習は待たせない（広告がなくてもすべての機能が動く）。
-  AdService.start();
+  // 同意フォーム・ATT のダイアログはホーム画面にいるときだけ表示する。
+  AdService.start(waitForSafeMoment: waitUntilHome);
 }

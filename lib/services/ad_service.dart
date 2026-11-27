@@ -63,8 +63,10 @@ class AdService {
   static bool _consentListening = false;
 
   /// 起動時に1回呼ぶ（main.dart）。同意を確認し、許可されたら SDK を初期化して先読みする。
-  static Future<void> start() async {
+  /// [waitForSafeMoment]：同意フォーム・ATT のダイアログを出してよい時（ホーム画面）まで待つ。
+  static Future<void> start({Future<void> Function()? waitForSafeMoment}) async {
     if (!isSupportedPlatform) return;
+    consent.waitForSafeMoment = waitForSafeMoment;
     if (!_consentListening) {
       _consentListening = true;
       var last = consent.state.value;

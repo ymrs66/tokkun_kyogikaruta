@@ -4,7 +4,10 @@
 //
 // 公式の手順（https://developers.google.com/admob/flutter/privacy）に沿って、
 //  1. 起動ごとに requestConsentInfoUpdate() で同意情報を更新する
-//  2. 必要なときだけ同意フォームを表示する（loadAndShowConsentFormIfRequired）
+//  2. 必要なときだけ同意フォームを表示する（loadAndShowConsentFormIfRequired）。
+//     iOS では AdMob の IDFA 説明メッセージを公開すると、UMP が説明 → ATT のダイアログを表示する
+//     （EEA では欧州の規制のメッセージが先）。フォームはホーム画面にいるときだけ表示する
+//     （練習を始めた後にフォームやダイアログが重ならないように。[waitForSafeMoment]）
 //  3. canRequestAds() が true のときだけ Mobile Ads SDK を初期化し、広告を読み込む
 //     （更新に失敗しても、前回の起動時の同意状態で canRequestAds() を判断できる）
 //  4. プライバシー オプションが必要なら、設定画面に「広告のプライバシー設定」を出す
@@ -76,14 +79,26 @@ abstract class ConsentPlatform {
 
 /// 同意の確認 → SDK の初期化 → 広告の読み込み可否、を管理する。
 class AdConsentController {
-  AdConsentController({required this.platform, required this.initializeAds});
+  AdConsentController({
+    required this.platform,
+    required this.initializeAds,
+    this.waitForSafeMoment,
+  });
 
   final ConsentPlatform platform;
+
+  /// 同意フォーム（iOS では IDFA の説明 → ATT のダイアログを含む）を表示してよい時まで待つ。
+  /// アプリではホーム画面に戻るまで待つ（練習中にフォームが重なって練習が進まないように）。
+  /// null なら待たない。
+  Future<void> Function()? waitForSafeMoment;
 
   /// Mobile Ads SDK の初期化（1回だけ呼ぶ）
   final Future<void> Function() initializeAds;
 
   final ValueNotifier<AdConsentState> state = ValueNotifier(const AdConsentState());
+
+  /// 同意フォームの読み込み・表示中（ホーム画面はこの間、練習を始めない）
+  final ValueNotifier<bool> formInProgress = ValueNotifier(false);
 
   Future<void>? _gathering;
   Future<void>? _initializing;
@@ -104,7 +119,14 @@ class AdConsentController {
     }
     if (updated) {
       try {
-        await platform.loadAndShowConsentFormIfRequired();
+        final wait = waitForSafeMoment;
+        if (wait != null) await wait();
+        formInProgress.value = true;
+        try {
+          await platform.loadAndShowConsentFormIfRequired();
+        } finally {
+          formInProgress.value = false;
+        }
       } catch (_) {
         // フォームの読み込み・表示に失敗しても、下で canRequestAds() を確認する
       }

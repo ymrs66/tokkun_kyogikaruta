@@ -1,4 +1,6 @@
 // app.dart
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'screens/title_screen.dart';
@@ -29,6 +31,23 @@ final _router = GoRouter(
     GoRoute(path: '/match/result', builder: (_, _) => const MatchResultScreen()),
   ],
 );
+
+/// ホーム画面が表示されるまで待つ（すでにホームならすぐ戻る）。
+/// 広告の同意フォーム・ATT のダイアログを、練習中に重ねないために使う（main.dart）。
+Future<void> waitUntilHome() async {
+  bool atHome() => _router.routerDelegate.currentConfiguration.uri.path == '/';
+  if (atHome()) return;
+  final done = Completer<void>();
+  void check() {
+    if (atHome() && !done.isCompleted) done.complete();
+  }
+  _router.routerDelegate.addListener(check);
+  try {
+    await done.future;
+  } finally {
+    _router.routerDelegate.removeListener(check);
+  }
+}
 
 /// テストで画面の位置をホームに戻すため（ルーターはアプリ全体で1つ）
 @visibleForTesting
