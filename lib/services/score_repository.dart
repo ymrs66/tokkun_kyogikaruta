@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/practice_record.dart';
+import '../domain/rank_policy.dart';
 
 /// 成績の保存先（テストで失敗を再現できるように SharedPreferences を包む）
 abstract class KeyValueStore {
@@ -69,6 +70,10 @@ class ScoreRepository {
   static const legacyAccuracy = 'bestAccuracy';
   static const legacyAvgSec = 'bestAvgSec';
 
+  /// 実践練習：空札の割合ごとの最高記録（k0・k30・k50）と前回の結果
+  static String keyMatchBest(int karafudaPercent) => 'record.v2.match.best.k$karafudaPercent';
+  static const keyMatchLast = 'record.v2.match.last';
+
   /// 成績として扱うすべてのキー（Phase 3 の「成績をリセット」で新旧両方を消すため）
   static const allScoreKeys = [
     keyBestNormal,
@@ -131,8 +136,42 @@ class ScoreRepository {
   /// 前回の結果
   PracticeRecord? loadLast() => _readJson(keyLast);
 
-  /// 1回の結果を保存する。
+  /// 実践練習の最高記録（空札の割合別）
+  PracticeRecord? loadMatchBest(int karafudaPercent) =>
+      _readJson(keyMatchBest(karafudaPercent));
+
+  /// 実践練習の前回の結果
+  PracticeRecord? loadMatchLast() => _readJson(keyMatchLast);
+
+  /// 実践練習の結果を保存する（反応練習のキー・旧キーには触れない）。
+  Future<SaveOutcome> _saveMatch(PracticeRecord record) async {
+    final last = loadMatchLast();
+    if (last != null && last.sessionId == record.sessionId) {
+      return const SaveOutcome(bestUpdated: false, duplicate: true, failed: false);
+    }
+    final key = keyMatchBest(record.karafudaPercent);
+    final current = _readJson(key);
+    var bestUpdated = false;
+    var failed = false;
+    if (isNewBest(record, current)) {
+      if (await _store.setString(key, jsonEncode(record.toJson()))) {
+        bestUpdated = true;
+      } else {
+        failed = true;
+      }
+    }
+    final lastOk = await _store.setString(keyMatchLast, jsonEncode(record.toJson()));
+    return SaveOutcome(
+      bestUpdated: bestUpdated,
+      duplicate: false,
+      failed: failed || !lastOk,
+      previousBest: current,
+    );
+  }
+
+  /// 1回の結果を保存する。実践練習の記録は実践練習のキーへ。
   Future<SaveOutcome> save(PracticeRecord record) async {
+    if (record.mode == PracticeMode.match) return _saveMatch(record);
     final last = loadLast();
     if (last != null && last.sessionId == record.sessionId) {
       return const SaveOutcome(bestUpdated: false, duplicate: true, failed: false);

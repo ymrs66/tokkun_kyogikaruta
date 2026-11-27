@@ -59,4 +59,41 @@ void main() {
     expect(cfg.karafudaPercent, 50);
     expect(cfg.otetsukiPenalty, isTrue);
   });
+
+  group('実践練習の開始条件（Phase 4）', () {
+    test('初期値：暗記 1分・空札 30%', () async {
+      final c = await containerWith({});
+      expect(c.read(settingsProvider).matchMemorizeSec, 60);
+      expect(c.read(settingsProvider).matchKarafudaPercent, 30);
+    });
+    test('選んだ値は保存され、次回の初期値になる。範囲外は初期値', () async {
+      final c = await containerWith({});
+      await c.read(settingsProvider.notifier).setMatchMemorizeSec(180);
+      await c.read(settingsProvider.notifier).setMatchKarafudaPercent(0);
+      await c.read(settingsProvider.notifier).setMatchMemorizeSec(300); // 選択肢にない
+      final p = c.read(sharedPrefsProvider);
+      final c2 = ProviderContainer(overrides: [sharedPrefsProvider.overrideWithValue(p)]);
+      expect(c2.read(settingsProvider).matchMemorizeSec, 180);
+      expect(c2.read(settingsProvider).matchKarafudaPercent, 0);
+      final c3 = await containerWith({
+        SettingsKeys.matchMemorizeSec: 15,
+        SettingsKeys.matchKarafudaPercent: 20,
+      });
+      expect(c3.read(settingsProvider).matchMemorizeSec, 60);
+      expect(c3.read(settingsProvider).matchKarafudaPercent, 30);
+    });
+    test('設定を初期値に戻すと実践練習の条件も戻る', () async {
+      final c = await containerWith({
+        SettingsKeys.matchMemorizeSec: 30,
+        SettingsKeys.matchKarafudaPercent: 50,
+        'record.v2.match.last': '{}',
+      });
+      await c.read(settingsProvider.notifier).resetToDefaults();
+      final p = c.read(sharedPrefsProvider);
+      expect(p.containsKey(SettingsKeys.matchMemorizeSec), isFalse);
+      expect(p.containsKey(SettingsKeys.matchKarafudaPercent), isFalse);
+      expect(p.containsKey('record.v2.match.last'), isTrue);
+      expect(c.read(settingsProvider).matchMemorizeSec, 60);
+    });
+  });
 }

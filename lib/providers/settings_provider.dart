@@ -2,6 +2,7 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../domain/match_plan.dart';
 import '../models/app_settings.dart';
 
 /// 起動時に読み込んだ SharedPreferences（main.dart で override する）
@@ -18,12 +19,18 @@ class SettingsKeys {
   static const otetsukiPenalty = '${prefix}otetsukiPenalty';
   static const soundOn = '${prefix}soundOn';
   static const textFlowOn = '${prefix}textFlowOn';
+
+  /// 実践練習の開始条件（前回の値を次回の初期値にする）
+  static const matchMemorizeSec = '${prefix}match.memorizeSec';
+  static const matchKarafudaPercent = '${prefix}match.karafudaPercent';
   static const all = [
     karafudaEnabled,
     karafudaPercent,
     otetsukiPenalty,
     soundOn,
     textFlowOn,
+    matchMemorizeSec,
+    matchKarafudaPercent,
   ];
 }
 
@@ -48,7 +55,16 @@ class SettingsNotifier extends Notifier<AppSettings> {
     final percent = rawPercent is int && AppSettings.isValidPercent(rawPercent)
         ? rawPercent
         : d.karafudaPercent;
+    final rawMem = p.get(SettingsKeys.matchMemorizeSec);
+    final rawMatchKara = p.get(SettingsKeys.matchKarafudaPercent);
     return AppSettings(
+      matchMemorizeSec: rawMem is int && matchMemorizeSecOptions.contains(rawMem)
+          ? rawMem
+          : d.matchMemorizeSec,
+      matchKarafudaPercent:
+          rawMatchKara is int && matchKarafudaPercentOptions.contains(rawMatchKara)
+              ? rawMatchKara
+              : d.matchKarafudaPercent,
       karafudaEnabled: b(SettingsKeys.karafudaEnabled, d.karafudaEnabled),
       karafudaPercent: percent,
       otetsukiPenalty: b(SettingsKeys.otetsukiPenalty, d.otetsukiPenalty),
@@ -81,6 +97,18 @@ class SettingsNotifier extends Notifier<AppSettings> {
   Future<void> setOtetsukiPenalty(bool v) async {
     state = state.copyWith(otetsukiPenalty: v);
     await _p.setBool(SettingsKeys.otetsukiPenalty, v);
+  }
+
+  Future<void> setMatchMemorizeSec(int v) async {
+    if (!matchMemorizeSecOptions.contains(v)) return;
+    state = state.copyWith(matchMemorizeSec: v);
+    await _p.setInt(SettingsKeys.matchMemorizeSec, v);
+  }
+
+  Future<void> setMatchKarafudaPercent(int v) async {
+    if (!matchKarafudaPercentOptions.contains(v)) return;
+    state = state.copyWith(matchKarafudaPercent: v);
+    await _p.setInt(SettingsKeys.matchKarafudaPercent, v);
   }
 
   /// 設定を初期値に戻す（settings.v1.* だけを消す。成績・ギャラリーには触れない）

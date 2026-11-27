@@ -20,6 +20,9 @@ class PracticeRecord {
     required this.sessionId,
     required this.playedAt,
     this.counts = const {},
+    this.mode = PracticeMode.reaction,
+    this.memorizeSec,
+    this.memorizeUsedSec,
   });
 
   final Rank rank;
@@ -49,8 +52,17 @@ class PracticeRecord {
   final String sessionId;
   final DateTime playedAt;
 
-  /// 判定の内訳（Verdict.name → 回数）
+  /// 判定の内訳（反応練習：Verdict.name → 回数、実践練習：MatchOutcome.name と陣別の値）
   final Map<String, int> counts;
+
+  /// 練習の種類（JSON に mode がない既存の記録は反応練習）
+  final PracticeMode mode;
+
+  /// 実践練習：設定した暗記時間（秒）
+  final int? memorizeSec;
+
+  /// 実践練習：実際に使った暗記時間（秒。「暗記終了」で早く始めた場合は短い）
+  final int? memorizeUsedSec;
 
   RecordCategory get category =>
       karafudaPercent > 0 ? RecordCategory.karafuda : RecordCategory.normal;
@@ -77,6 +89,9 @@ class PracticeRecord {
         'sessionId': sessionId,
         'playedAt': playedAt.toIso8601String(),
         'counts': counts,
+        'mode': mode.name,
+        if (memorizeSec != null) 'memorizeSec': memorizeSec,
+        if (memorizeUsedSec != null) 'memorizeUsedSec': memorizeUsedSec,
       };
 
   /// JSON から復元する。形式が正しくなければ [FormatException]。
@@ -106,7 +121,17 @@ class PracticeRecord {
         if (k is String && v is int) counts[k] = v;
       });
     }
+    final modeName = json['mode'];
+    final mode = modeName == null
+        ? PracticeMode.reaction
+        : PracticeMode.values.where((m) => m.name == modeName).firstOrNull;
+    if (mode == null) throw const FormatException('bad mode');
+    final mem = json['memorizeSec'];
+    final memUsed = json['memorizeUsedSec'];
     return PracticeRecord(
+      mode: mode,
+      memorizeSec: mem is int ? mem : null,
+      memorizeUsedSec: memUsed is int ? memUsed : null,
       rank: rank,
       accuracy: accuracy,
       avgMs: avg as int?,
