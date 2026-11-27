@@ -72,6 +72,11 @@ debug / profile ビルドでは、AdMob は常に **Google 配布のテスト ID
 - 同意フォームは、AdMob 管理画面の「プライバシーとメッセージ」で該当地域（欧州・米国の州など）のメッセージを公開したときだけ表示される
 - プライバシー オプションが必要な利用者には、設定画面に「広告のプライバシー設定」を表示する
 - 広告の内容は一般向け（`maxAdContentRating: G`）までに制限する
+- 同意フォームはホーム画面にいるときだけ表示する（練習中に重ねない）。表示中はホームの練習ボタンを受け付けない
+
+### ATT（iOS）
+
+`Info.plist` の `NSUserTrackingUsageDescription` があり、AdMob の「IDFA 説明メッセージ」をこのアプリに公開すると、UMP が説明 → ATT のダイアログを表示する（ATT 用のパッケージは使わない）。EEA では欧州の規制のメッセージが先。ATT を拒否しても全機能を使える（広告はパーソナライズなしで表示され得る）。
 
 ### 同意フォームの確認（debug / profile のみ）
 
@@ -79,6 +84,14 @@ debug / profile ビルドでは、AdMob は常に **Google 配布のテスト ID
 fvm flutter run --dart-define=UMP_DEBUG_GEOGRAPHY=eea                       # 欧州として扱う（シミュレーター）
 fvm flutter run --dart-define=UMP_DEBUG_GEOGRAPHY=eea --dart-define=UMP_TEST_DEVICE_IDS=<ハッシュID>   # 実機
 ```
+
+本番の App ID に設定したメッセージ（AdMob で公開したもの）を確認するとき（**iOS の Debug のみ**。広告ユニットは Google のテスト ID のまま）：
+
+```bash
+fvm flutter run --debug --dart-define=UMP_PREVIEW_APP_ID_IOS=<本番の iOS App ID> --dart-define=UMP_DEBUG_GEOGRAPHY=eea
+```
+
+`UMP_PREVIEW_APP_ID_IOS` は Profile・Release では無視され、Release の保護は変わらない。ATT の説明を見直すときは、アプリを削除して入れ直す（ATT が未決定のときだけ表示されるため）。
 
 `UMP_DEBUG_GEOGRAPHY` は `eea` / `us_state` / `other`。実機のハッシュ ID は起動時のログに表示される。**release ビルドでは指定しても無効**（正式版に混入しない）。debug ではテスト用 App ID のため、Google のテスト用のフォームが表示される。
 
@@ -88,7 +101,7 @@ TestFlight のビルドは release のため本番の広告 ID を使う。確�
 
 - AdMob 管理画面の「設定 → テストデバイス」に登録する（iOS は広告 ID（IDFA）で登録するため、トラッキングを許可していない端末では使えない場合がある）
 - 端末のハッシュ ID（SDK のログ「To get test ads on this device…」）を指定してビルドする：
-  `--dart-define=ADMOB_TEST_DEVICE_IDS=<ハッシュID>`（カンマ区切り、`admob_release.json` とは別に指定）。指定した端末だけがテスト広告になる
+  `--dart-define=ADMOB_TEST_DEVICE_IDS=<ハッシュID>`（カンマ区切り、`admob_release.json` とは別に指定）。指定した端末だけがテスト広告になる。**一般公開用の最終ビルドでは指定しない**（3-4 の config-only をこの指定なしでやり直してから Archive）
 
 ## 署名
 

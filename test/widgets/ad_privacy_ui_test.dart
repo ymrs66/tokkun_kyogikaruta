@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tokkun_kyogikaruta/app.dart';
 import 'package:tokkun_kyogikaruta/providers/settings_provider.dart';
 import 'package:tokkun_kyogikaruta/screens/privacy_screen.dart';
 import 'package:tokkun_kyogikaruta/screens/settings_screen.dart';
@@ -74,6 +75,56 @@ void main() {
       await pumpScreen(tester, const SettingsScreen());
       expect(AdService.consent.canRequestAds, isFalse);
       expect(find.text('広告のプライバシー設定'), findsOneWidget);
+    });
+  });
+
+  group('ホーム：同意フォームの表示中は練習を始めない', () {
+    Future<void> pumpHome(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(393, 852);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      SharedPreferences.setMockInitialValues({});
+      final p = await SharedPreferences.getInstance();
+      appRouter.go('/');
+      await tester.pumpWidget(ProviderScope(
+        overrides: [sharedPrefsProvider.overrideWithValue(p)],
+        child: const App(),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    for (final label in ['反応練習', '実践練習']) {
+      testWidgets('$label：フォームの表示中は押しても始まらず、閉じた後は始められる', (tester) async {
+        await pumpHome(tester);
+        AdService.consent.formInProgress.value = true;
+        await tester.tap(find.text(label));
+        await tester.pumpAndSettle();
+        expect(appRouter.routerDelegate.currentConfiguration.uri.path, '/');
+
+        AdService.consent.formInProgress.value = false;
+        await tester.tap(find.text(label));
+        await tester.pumpAndSettle();
+        expect(appRouter.routerDelegate.currentConfiguration.uri.path, isNot('/'));
+        appRouter.go('/');
+        await tester.pumpAndSettle();
+        await tester.pump(const Duration(seconds: 5)); // 画面遷移で始まったタイマーを終わらせる
+      });
+    }
+
+    testWidgets('waitUntilHome：ホームならすぐ終わり、他の画面ならホームに戻るまで待つ', (tester) async {
+      await pumpHome(tester);
+      await tester.runAsync(() => waitUntilHome());
+
+      appRouter.go('/settings');
+      await tester.pumpAndSettle();
+      var done = false;
+      final f = waitUntilHome().then((_) => done = true);
+      await tester.pump();
+      expect(done, isFalse);
+      appRouter.go('/');
+      await tester.pumpAndSettle();
+      await f;
+      expect(done, isTrue);
     });
   });
 

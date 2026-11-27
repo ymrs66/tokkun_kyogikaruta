@@ -31,9 +31,12 @@ class FakeConsentPlatform implements ConsentPlatform {
     return updateSucceeds;
   }
 
+  Completer<void>? holdForm;
+
   @override
   Future<void> loadAndShowConsentFormIfRequired() async {
     calls.add('formIfRequired');
+    if (holdForm != null) await holdForm!.future;
     if (formThrows) throw Exception('form failed');
     if (formRequired) calls.add('formShown');
   }
@@ -171,6 +174,45 @@ void main() {
     expect(c.canRequestAds, isFalse);
     expect(c.state.value.generation, g0 + 2);
     expect(initCount, 1);
+  });
+
+  group('フォームを出す時機（練習中に重ねない）', () {
+    test('ホームに戻るまでフォーム（ATT を含む）を出さず、広告も始めない', () async {
+      final home = Completer<void>();
+      c.waitForSafeMoment = () => home.future;
+      final g = c.gather();
+      await Future<void>.delayed(Duration.zero);
+      expect(platform.calls, ['update'], reason: '練習中はフォームを読み込まない');
+      expect(c.canRequestAds, isFalse);
+      home.complete();
+      await g;
+      expect(platform.calls, ['update', 'formIfRequired', 'canRequestAds']);
+      expect(c.canRequestAds, isTrue);
+    });
+
+    test('同意情報の取得に失敗したときは待たずに前回の状態で判断する', () async {
+      c.waitForSafeMoment = () => Completer<void>().future; // 永久に待つ
+      platform.updateSucceeds = false;
+      await c.gather();
+      expect(c.canRequestAds, isTrue);
+    });
+
+    test('フォームの読み込み・表示中は formInProgress が true（ホームで練習を始めない）', () async {
+      platform.holdForm = Completer<void>();
+      final g = c.gather();
+      await Future<void>.delayed(Duration.zero);
+      expect(c.formInProgress.value, isTrue);
+      platform.holdForm!.complete();
+      await g;
+      expect(c.formInProgress.value, isFalse);
+    });
+
+    test('フォームが失敗しても formInProgress は戻る', () async {
+      platform.formThrows = true;
+      await c.gather();
+      expect(c.formInProgress.value, isFalse);
+      expect(c.canRequestAds, isTrue);
+    });
   });
 
   group('UMP のデバッグ設定', () {
