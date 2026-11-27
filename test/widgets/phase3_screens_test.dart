@@ -245,6 +245,15 @@ void main() {
     });
   });
 
+  testWidgets('遊び方：通知・アプリ切り替えでの一時停止と参考記録を説明している', (tester) async {
+    await pumpApp(tester);
+    await goTo(tester, '遊び方説明');
+    await tester.scrollUntilVisible(find.textContaining('通知やコントロールセンター'), 200,
+        scrollable: find.byType(Scrollable).last);
+    expect(find.textContaining('通知やコントロールセンター'), findsOneWidget);
+    expect(find.textContaining('「参考記録」になります'), findsOneWidget);
+  });
+
   testWidgets('成績画面：記録が少なくても背景が画面いっぱい（BackgroundScaffold）', (tester) async {
     await pumpApp(tester, size: const Size(393, 852));
     await goTo(tester, '成績・ランク');

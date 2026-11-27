@@ -78,7 +78,8 @@ class HowToScreen extends StatelessWidget {
               title: '＜参考記録・ギャラリー＞',
               children: [
                 _BulletRow(icon: Icons.emoji_events_outlined, text: '練習を最後まで終えると、結果のランクに応じてギャラリーの画像を1枚獲得できます'),
-                _BulletRow(icon: Icons.pause_circle_outline, text: '途中で中断して続けた練習（アプリを閉じた・通知を開いたなども含む）は「参考記録」になります'),
+                _BulletRow(icon: Icons.notifications_paused_outlined, text: '練習中に通知やコントロールセンターを開いたり、別のアプリに切り替えたりすると、練習は一時停止します'),
+                _BulletRow(icon: Icons.pause_circle_outline, text: '一時停止や中断のあとに練習を続けると、その回は「参考記録」になります'),
                 _BulletRow(icon: Icons.block, text: '参考記録は、最高記録の更新・ギャラリーの獲得の対象外です'),
               ],
             ),

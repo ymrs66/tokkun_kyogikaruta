@@ -14,6 +14,9 @@ abstract class PracticeAudio {
   Future<void> setMuted(bool muted);
   Future<void> stop();
   Future<void> dispose();
+
+  /// 最後に準備を頼んだ札の読み込みに失敗したか（音声なしで練習を続けるときの表示に使う）
+  bool get preparationFailed;
 }
 
 /// 音声プレーヤーの最小限の操作（audioplayers を包む。テストでは差し替える）
@@ -65,6 +68,7 @@ class KarutaAudio implements PracticeAudio {
   final AudioBackend _b;
   int? _requestedId; // 最後に準備を頼んだ札
   int? _preparedId; // 読み込み済みの札
+  int? _failedId; // 読み込みに失敗した札
   int _playToken = 0; // 再生の要求の番号（一時停止・停止・次の準備で無効にする）
   bool _disposed = false;
   Future<void> _queue = Future.value(); // 準備を順番に処理する
@@ -80,9 +84,18 @@ class KarutaAudio implements PracticeAudio {
   Future<void> prepare(int cardId) {
     _requestedId = cardId;
     _playToken++; // 前の札の再生要求を無効にする
-    _queue = _queue.then((_) => _guard(_doPrepare(cardId)));
+    _queue = _queue.then((_) async {
+      try {
+        await _doPrepare(cardId);
+      } catch (_) {
+        _failedId = cardId;
+      }
+    });
     return _queue;
   }
+
+  @override
+  bool get preparationFailed => _requestedId != null && _failedId == _requestedId;
 
   Future<void> _doPrepare(int id) async {
     // 後から別の札の準備を頼まれていたら、この準備はしない（古い要求の無視）
@@ -99,6 +112,7 @@ class KarutaAudio implements PracticeAudio {
     await _b.seekToStart();
     await _b.pause(); // 準備完了（無音で待機）
     _preparedId = id;
+    if (_failedId == id) _failedId = null;
   }
 
   @override

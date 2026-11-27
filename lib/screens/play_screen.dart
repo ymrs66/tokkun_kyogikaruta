@@ -23,10 +23,15 @@ const double _cardAspect = 160 / 213;
 class PlayScreen extends HookConsumerWidget {
   const PlayScreen({super.key});
 
-  /// 中断ダイアログ（「✕ 中断」・戻る・バックグラウンド化）。表示中はタイマー・音声・進行を止める。
-  static Future<void> openPauseDialog(BuildContext context, WidgetRef ref) async {
+  /// 中断ダイアログ（「✕ 中断」・戻る・inactive／バックグラウンドからの復帰）。
+  /// 表示中はタイマー・音声・進行を止める。[dialogOpen] でダイアログを1つだけにする。
+  static Future<void> openPauseDialog(
+      BuildContext context, WidgetRef ref, ObjectRef<bool> dialogOpen) async {
     final g = ref.read(gameProvider);
-    if (!g.requestPause()) return; // 練習中でない・すでに表示中なら何もしない（ダイアログは1つだけ）
+    final newlyPaused = g.requestPause();
+    if (!newlyPaused && !g.isPaused) return; // 練習中でない（終了後・開始前など）
+    if (dialogOpen.value) return; // すでに表示中
+    dialogOpen.value = true;
     final canResume = g.canResume;
     final quit = await showDialog<bool>(
       context: context,
@@ -51,6 +56,7 @@ class PlayScreen extends HookConsumerWidget {
         ],
       ),
     );
+    dialogOpen.value = false;
     // 「戻る」でダイアログを閉じた（null）ときは「続ける」と同じ
     if (quit == true || !g.resume()) {
       g.abort();
@@ -93,12 +99,35 @@ class PlayScreen extends HookConsumerWidget {
       return null;
     }, [g.finished]);
 
-    // バックグラウンド化（ホーム・着信など）も中断として扱う
+    final dialogOpen = useRef(false);
+
+    // inactive（iOS のコントロールセンター・通知、Android の通知の引き出しなど）・バックグラウンド化：
+    // その時点で止める（何度来ても1回だけ）。画面に戻ったら中断ダイアログを出す。
     useOnAppLifecycleStateChange((_, state) {
-      if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
-        if (context.mounted) openPauseDialog(context, ref);
+      final game = ref.read(gameProvider);
+      switch (state) {
+        case AppLifecycleState.inactive:
+        case AppLifecycleState.hidden:
+        case AppLifecycleState.paused:
+          game.requestPause();
+        case AppLifecycleState.resumed:
+          if (game.isPaused && context.mounted) openPauseDialog(context, ref, dialogOpen);
+        case AppLifecycleState.detached:
+          break;
       }
     });
+
+    // 音声を再生できなかったときは知らせる（文字は自動で表示する）
+    useEffect(() {
+      if (g.audioUnavailable) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('読み上げ音声を再生できないため、上の句の文字を表示します')));
+        });
+      }
+      return null;
+    }, [g.audioUnavailable]);
 
     // 判定の振動（判定ごとに1回）
     useEffect(() {
@@ -162,9 +191,10 @@ class PlayScreen extends HookConsumerWidget {
           ],
         );
 
+    // 音声と文字が両方 OFF・音声を再生できないときは、問題が分かるよう文字を表示する
     final info = _InfoArea(
       game: g,
-      flowOn: flowOn,
+      flowOn: flowOn || !soundOn || g.audioUnavailable,
       slide: slideAnim,
     );
 
@@ -176,7 +206,7 @@ class PlayScreen extends HookConsumerWidget {
         onBackButtonPressed: () async {
           // ダイアログ表示中は、通常どおりダイアログを閉じる
           if (!(ModalRoute.of(context)?.isCurrent ?? true)) return false;
-          openPauseDialog(context, ref);
+          openPauseDialog(context, ref, dialogOpen);
           return true;
         },
         child: BackgroundScaffold(
@@ -184,7 +214,7 @@ class PlayScreen extends HookConsumerWidget {
             automaticallyImplyLeading: false,
             leadingWidth: 96,
             leading: TextButton.icon(
-              onPressed: () => openPauseDialog(context, ref),
+              onPressed: () => openPauseDialog(context, ref, dialogOpen),
               icon: const Icon(Icons.close),
               label: const Text('中断'),
             ),

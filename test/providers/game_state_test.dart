@@ -59,6 +59,8 @@ class FakeAudio implements PracticeAudio {
   Future<void> stop() async => log.add('stop');
   @override
   Future<void> dispose() async => log.add('dispose');
+  @override
+  bool preparationFailed = false;
 }
 
 /// どの操作も失敗する音声（同期の例外・非同期の例外）
@@ -84,6 +86,8 @@ class BrokenAudio implements PracticeAudio {
   Future<void> stop() => Future.error(StateError('x'));
   @override
   Future<void> dispose() async {}
+  @override
+  bool get preparationFailed => true;
 }
 
 const cd = Duration(seconds: 1);
@@ -218,6 +222,16 @@ void main() {
         g.onCardTap(g.current.id);
         expect(g.stats.judgedCount, 1);
         expect(g.lastVerdict, Verdict.missed);
+      });
+    });
+
+    test('時間切れの判定表示では秒数が 10（9 のまま残らない）', () {
+      fakeAsync((fa) {
+        final g = newGame(fa);
+        toAccepting(fa, g);
+        fa.elapse(const Duration(milliseconds: 10050));
+        expect(g.lastVerdict, Verdict.missed);
+        expect(g.elapsedSec, 10);
       });
     });
   });
@@ -512,6 +526,33 @@ void main() {
         g2.abort();
         expect(fa.pendingTimers, isEmpty);
       });
+    });
+  });
+
+  test('最後の問題の判定表示中に中断して続けると、そのまま終了し二重に保存されない', () {
+    fakeAsync((fa) {
+      final g = newGame(fa);
+      for (var i = 0; i < 10; i++) {
+        toAccepting(fa, g);
+        answerCorrectly(g);
+        if (i < 9) fa.elapse(fb);
+      }
+      expect(g.phase, PlayPhase.feedback);
+      expect(g.requestPause(), isTrue);
+      expect(g.resume(), isTrue);
+      expect(g.phase, PlayPhase.finished);
+      expect(g.stats.judgedCount, 10);
+      final repo = ScoreRepository(MemStore());
+      var grants = 0;
+      Future<(int?, bool)> grant(_) async {
+        grants++;
+        return (8, false);
+      }
+      g.finalizeResult(repository: repo, grantGallery: grant);
+      g.finalizeResult(repository: repo, grantGallery: grant);
+      fa.flushMicrotasks();
+      expect(grants, 0, reason: '参考記録なので付与しない');
+      expect(repo.loadLast()!.isReference, isTrue);
     });
   });
 
