@@ -104,6 +104,22 @@ run "Release：形式不正は中止" Release \
              "ADMOB_CONFIG_CONFIRMED_IOS=true")" fail
 run "Release：正しい形式の値は App ID を設定" Release "$(valid_ios)" ok "ca-app-pub-$P~2468013579"
 
+# UMP の本番メッセージの確認用（UMP_PREVIEW_APP_ID_IOS）：Debug だけで有効、Release の保護は変わらない
+PREVIEW="ca-app-pub-$P~9081726354"
+run "Debug：UMP 確認用の App ID を設定" Debug "$(defines "UMP_PREVIEW_APP_ID_IOS=$PREVIEW")" ok "$PREVIEW"
+run "Debug：UMP 確認用にテスト ID は中止" Debug \
+  "$(defines "UMP_PREVIEW_APP_ID_IOS=$TEST_APP_ID")" fail
+run "Debug：UMP 確認用にひな形は中止" Debug \
+  "$(defines "UMP_PREVIEW_APP_ID_IOS=ca-app-pub-0000000000000000~0000000000")" fail
+run "Debug：UMP 確認用に広告ユニット ID（/）は中止" Debug \
+  "$(defines "UMP_PREVIEW_APP_ID_IOS=ca-app-pub-$P/9081726354")" fail
+run "Profile：UMP 確認用は無視してテスト用 App ID" Profile \
+  "$(defines "UMP_PREVIEW_APP_ID_IOS=$PREVIEW")" ok "$TEST_APP_ID"
+run "Release：UMP 確認用だけでは中止" Release \
+  "$(defines "UMP_PREVIEW_APP_ID_IOS=$PREVIEW")" fail
+run "Release：UMP 確認用があっても本番設定の App ID を使う" Release \
+  "$(valid_ios),$(enc "UMP_PREVIEW_APP_ID_IOS=$PREVIEW")" ok "ca-app-pub-$P~2468013579"
+
 if [ $FAILED -eq 0 ]; then
   echo "All admob_config.sh tests passed."
 else

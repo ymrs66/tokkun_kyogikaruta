@@ -5,18 +5,33 @@ import 'package:url_launcher/url_launcher.dart';
 import '../widgets/background_scaffold.dart';
 import '../widgets/back_to_home.dart';
 
-const _policyUrl = 'https://doc-hosting.flycricket.io/kyougi-karuta-tokkun-privacy-policy/aeb77bcf-73e8-4707-af0e-0608e39c400d/privacy'; // ←公開URLに差し替え
+/// プライバシーポリシー（日本語・英語。Android・iOS 共通）
+const privacyPolicyUrl = 'https://www.ymr-system.jp/karuta/privacy.html';
+
+/// URL を開く処理（テストで差し替える）
+typedef UrlOpener = Future<bool> Function(Uri uri);
+
+Future<bool> _defaultOpener(Uri uri) =>
+    launchUrl(uri, mode: LaunchMode.externalApplication);
 
 class PrivacyScreen extends StatelessWidget {
-  const PrivacyScreen({super.key});
+  const PrivacyScreen({super.key, this.openUrl = _defaultOpener});
+
+  final UrlOpener openUrl;
 
   Future<void> _openPolicy(BuildContext context) async {
-    final uri = Uri.parse(_policyUrl);
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    bool ok;
+    try {
+      ok = await openUrl(Uri.parse(privacyPolicyUrl));
+    } catch (_) {
+      ok = false; // ブラウザがない・起動に失敗した など
+    }
     if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ブラウザを開けませんでした')),
-      );
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text('ブラウザを開けませんでした。\n$privacyPolicyUrl'),
+        ));
     }
   }
 

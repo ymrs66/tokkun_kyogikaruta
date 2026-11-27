@@ -108,6 +108,29 @@ case "${CONFIGURATION:-}" in
     set_app_id "$APP_ID"
     echo "AdMob Config: Release の App ID を設定しました（パブリッシャー ${APP_PUB}）"
     ;;
+  Debug*)
+    # UMP の本番メッセージの確認用（開発専用）：
+    #   fvm flutter run --debug --dart-define=UMP_PREVIEW_APP_ID_IOS=<本番の iOS App ID>
+    # App ID だけを本番にして、AdMob 管理画面で公開した同意メッセージを表示させる。
+    # 広告ユニット ID は Debug なので Google のテスト ID のまま（アプリ側で固定）。Release・Profile では使わない。
+    PREVIEW=$(define_value UMP_PREVIEW_APP_ID_IOS)
+    if [ -n "$PREVIEW" ]; then
+      PREVIEW_PUB=$(publisher_of "$PREVIEW" "~")
+      if [ -z "$PREVIEW_PUB" ] || [ "$PREVIEW_PUB" = "$TEST_PUBLISHER" ] || is_placeholder "$PREVIEW"; then
+        echo "error: AdMob Config: UMP_PREVIEW_APP_ID_IOS が iOS の App ID（ca-app-pub-<16桁>~<10桁>）ではありません: $PREVIEW"
+        exit 1
+      fi
+      set_app_id "$PREVIEW"
+      echo "warning: AdMob Config: UMP 確認用に本番の App ID を使用します（広告はテスト ID。Debug のみ）"
+      exit 0
+    fi
+    CURRENT=$("$BUDDY" -c "Print :GADApplicationIdentifier" "$PLIST" 2>/dev/null || true)
+    case "$CURRENT" in
+      "ca-app-pub-${TEST_PUBLISHER}~"*) ;;
+      *) set_app_id "$TEST_APP_ID" ;;
+    esac
+    echo "AdMob Config: ${CONFIGURATION:-?} はテスト用 App ID を使用します"
+    ;;
   *)
     CURRENT=$("$BUDDY" -c "Print :GADApplicationIdentifier" "$PLIST" 2>/dev/null || true)
     case "$CURRENT" in

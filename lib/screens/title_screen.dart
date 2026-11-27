@@ -29,7 +29,11 @@ class TitleScreen extends ConsumerWidget {
     AdService.prefetchInterstitial(); //広告
     final settings = ref.watch(settingsProvider);
 
+    // 広告の同意フォーム（ATT を含む）の読み込み・表示中は練習を始めない
+    bool consentFormBusy() => AdService.consent.formInProgress.value;
+
     void startReaction() {
+      if (consentFormBusy()) return;
       final g = ref.read(gameProvider);
       g.resetGame(); // スコアなど初期化
       // 設定を練習開始時に固定する（1問目の準備。カウントダウンは練習画面で開始）
@@ -56,7 +60,10 @@ class TitleScreen extends ConsumerWidget {
           description: matchDescription,
           condition: '暗記 ${memorizeLabel(settings.matchMemorizeSec)}・'
               '${settings.matchKarafudaPercent == 0 ? '空札なし' : '空札 ${settings.matchKarafudaPercent}%'}',
-          onTap: () => context.go('/match'),
+          onTap: () {
+            if (consentFormBusy()) return;
+            context.go('/match');
+          },
         ),
         const SizedBox(height: 6),
         _menuBtn(label: '遊び方説明', onTap: () => context.go('/howto')),
